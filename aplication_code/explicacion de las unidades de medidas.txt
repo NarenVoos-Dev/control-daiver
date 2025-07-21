@@ -1,0 +1,72 @@
+El Concepto: La Unidad de Medida Más Pequeña
+Para cualquier producto que se pueda vender en fracciones, la regla de oro es: el stock siempre se controla en la unidad de medida más pequeña posible.
+
+Para tu ejemplo de la pintura:
+
+Producto: "Pintura Látex Blanca"
+
+Unidad de Compra: Galón (compras el pote entero).
+
+Unidades de Venta: Galón, 1/2 Galón, 1/4 de Galón.
+
+Unidad de Medida Base (para el stock): La más pequeña con la que trabajas. Para líquidos, lo mejor es usar una unidad de volumen estándar como Litros (L) o incluso Mililitros (mL) para máxima precisión. Usemos Litros.
+
+¿Cómo se configura en el sistema?
+Primero, en tu panel de "Unidades de Medida", crearías todas las unidades que usas, con su respectivo factor de conversión a Litros.
+
+Nombre de la Unidad
+
+Abreviatura
+
+Factor de Conversión (a Litros)
+
+Litro
+
+L
+
+1.0
+
+Galón
+
+G
+
+3.785
+
+1/2 Galón
+
+1/2 G
+
+1.892
+
+1/4 de Galón
+
+1/4 G
+
+0.946
+
+Luego, al crear tu producto "Pintura Látex Blanca", en el campo "Unidad de Medida Base", seleccionarías "Litro".
+
+Flujo de Trabajo en la Práctica
+Registro de Compra:
+
+Compras 1 Galón de pintura.
+
+El sistema internamente hace el cálculo: 1 (cantidad comprada) * 3.785 (factor del galón) = 3.785.
+
+El stock de tu producto aumenta en 3.785 Litros.
+
+Registro de Venta:
+
+Un cliente te pide "un cuarto". Vendes 1 1/4 de Galón.
+
+El sistema hace el cálculo: 1 (cantidad vendida) * 0.946 (factor del cuarto) = 0.946.
+
+El stock de tu producto disminuye en 0.946 Litros.
+
+Tu inventario siempre será preciso (3.785 - 0.946 = 2.839 Litros restantes), sin importar si vendes el pote completo o una fracción.
+
+La buena noticia es que el código que ya hemos implementado en el Canvas soporta perfectamente este escenario. El campo conversion_factor en la base de datos es de tipo decimal, por lo que acepta números fraccionarios sin problema.
+
+La clave no está en cambiar el código, sino en configurar tus Unidades de Medida y tus Productos de esta manera.
+
+Para mejorar aún más la precisión (especialmente con conversiones de líquidos que tienen muchos decimales), podría sugerirte una pequeña modificación en la base de datos para aumentar los decimales permitidos en el conversion_factor. ¿Te gustaría que te prepare la migración para hacer ese ajuste?

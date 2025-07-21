@@ -1,0 +1,88 @@
+Explicación Detallada de Cada Migración
+Aquí tienes un resumen de lo que hace cada archivo de migración para crear la estructura de tu base de datos.
+
+1. create_businesses_table.php
+Propósito: Crea la tabla businesses. Esta es la tabla más importante para el enfoque multiempresa. Cada registro en esta tabla representa una ferretería o negocio independiente que usará el sistema.
+
+Campos Clave:
+
+name: El nombre del negocio.
+
+nit: El NIT del negocio, que es único para identificarlo fiscalmente.
+
+2. add_business_id_to_users_table.php
+Propósito: Modifica la tabla users que Laravel ya trae por defecto. La ajusta para que el sistema sepa a qué negocio (business) pertenece cada usuario.
+
+Cambios Clave:
+
+business_id: Es una llave foránea que conecta a cada usuario con un registro de la tabla businesses.
+
+role: Define qué puede hacer el usuario en el sistema (ej: 'admin', 'vendedor', 'bodeguero').
+
+3. create_categories_table.php
+Propósito: Crea la tabla categories para organizar los productos. Cada negocio tendrá sus propias categorías (ej: "Herramientas Eléctricas", "Tornillería", "Pinturas").
+
+Relación: Cada categoría pertenece a un business.
+
+4. create_products_table.php
+Propósito: Crea la tabla products, el corazón del inventario. Aquí se guarda cada artículo de la ferretería.
+
+Campos Clave:
+
+business_id y category_id: Vinculan el producto a un negocio y una categoría.
+
+sku: Un código único para identificar y buscar rápidamente el producto.
+
+price y cost: Precio de venta y costo de compra, esenciales para calcular ganancias.
+
+stock: La cantidad actual disponible en inventario.
+
+5. create_suppliers_table.php
+Propósito: Crea la tabla suppliers para almacenar la información de los proveedores a quienes les compras la mercancía.
+
+Relación: Cada proveedor está asociado a un business específico.
+
+6. create_clients_table.php
+Propósito: Crea la tabla clients para guardar los datos de tus clientes. Es fundamental para el historial de ventas y la facturación.
+
+Relación: Cada cliente pertenece a un business.
+
+7. create_purchases_table.php
+Propósito: Crea dos tablas: purchases y purchase_items. Juntas, registran una compra de inventario a un proveedor.
+
+purchases: Contiene la información general (quién fue el proveedor, la fecha y el total).
+
+purchase_items: Contiene el detalle de cada producto en esa compra (qué producto, qué cantidad y a qué costo).
+
+Lógica: Cuando se registra una compra, el stock de los productos en purchase_items debe aumentar.
+
+8. create_sales_table.php
+Propósito: Crea las tablas sales y sale_items para registrar una venta a un cliente.
+
+sales: Contiene la información general de la venta (quién fue el cliente, la fecha, subtotal, impuestos y total).
+
+sale_items: Contiene el detalle de los productos vendidos (qué producto, qué cantidad y a qué precio se vendió).
+
+Lógica: Cuando se registra una venta, el stock de los productos en sale_items debe disminuir.
+
+9. create_stock_movements_table.php
+Propósito: Crea la tabla stock_movements. Esta es una tabla de auditoría. Registra cada vez que el stock de un producto cambia.
+
+Campos Clave:
+
+type: Indica el tipo de movimiento ('entrada' por una compra, 'salida' por una venta, o 'ajuste' por un conteo manual).
+
+source_type y source_id: Guardan una referencia al origen del movimiento (ej: la compra con ID 5 o la venta con ID 12). Esto te permite rastrear el historial completo de un producto.
+
+10. create_electronic_documents_table.php (El código que seleccionaste)
+Propósito: Crea la tabla electronic_documents. Esta tabla está diseñada específicamente para la Facturación Electrónica. Se conecta con la tabla sales.
+
+Campos Clave:
+
+sale_id: Vincula el documento electrónico a una venta específica.
+
+status: Guarda el estado de la factura ante la entidad fiscal (ej: 'enviado', 'aceptado', 'rechazado').
+
+cufe: Almacena el "Código Único de Factura Electrónica", que es el identificador legal de la factura.
+
+response_payload: Guarda la respuesta completa (en formato JSON) que entrega el proveedor de facturación electrónica (como Factus). Esto es vital para depurar problemas y tener un respaldo legal.

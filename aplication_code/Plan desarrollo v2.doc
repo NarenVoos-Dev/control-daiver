@@ -1,0 +1,177 @@
+Plan de Desarrollo: Versión 2.0 - De Sistema de Inventario a Herramienta de Gestión
+La Versión 2.0 se centrará en cuatro áreas clave: Finanzas y Facturación, Inteligencia de Inventario, Experiencia de Usuario, y Administración Avanzada.
+
+Módulo 1: Finanzas y Facturación (La Mayor Prioridad)
+Este es el siguiente gran paso para que el sistema sea comercialmente viable.
+
+Facturación Electrónica:
+
+Funcionalidad: Integrar la aplicación con un proveedor tecnológico autorizado por la DIAN (como Factus, Siigo, Alegra).
+
+Implementación:
+
+Añadir un botón "Generar Factura Electrónica" en la vista de cada venta.
+
+Enviar los datos de la venta al proveedor vía API.
+
+Recibir y almacenar la respuesta (CUFE, estado de la factura) en nuestra tabla electronic_documents.
+
+Enviar automáticamente el PDF de la factura al correo del cliente.
+
+Cuentas por Cobrar (Ventas a Crédito):
+
+Funcionalidad: Permitir registrar ventas que no se pagan de inmediato.
+
+Implementación:
+
+Modificar el SaleResource para añadir una opción de "Condición de Pago" (Contado, Crédito 30 días, etc.).
+
+Añadir un estado a las ventas (Pagada, Pendiente, Vencida).
+
+Crear un nuevo Resource para registrar los abonos o pagos que los clientes hacen a sus facturas a crédito.
+
+Un reporte nuevo para ver el estado de la cartera de clientes.
+
+Cuentas por Pagar (Compras a Crédito):
+
+Funcionalidad: El equivalente a las cuentas por cobrar, pero para las compras que haces a tus proveedores.
+
+Implementación: Muy similar al de Cuentas por Cobrar, pero aplicado al módulo de Compras.
+
+Módulo 2: Inteligencia de Inventario
+Vamos más allá de solo saber cuánto stock hay.
+
+Stock Mínimo y Máximo:
+
+Funcionalidad: Permitir definir, para cada producto, un nivel de stock mínimo (cuándo comprar) y máximo (cuánto comprar).
+
+Implementación:
+
+Añadir los campos min_stock y max_stock a la tabla products.
+
+Mejorar el widget del Dashboard para que las alertas de bajo stock usen estos nuevos valores en lugar de un número fijo.
+
+Sugerencias de Compra:
+
+Funcionalidad: Un nuevo reporte que analice la velocidad de venta de los productos y, basado en el stock actual y el stock mínimo, genere una lista de "Sugerencias de Compra" para optimizar el inventario.
+
+Módulo 3: Experiencia de Usuario y Automatización
+Hacer el sistema más rápido y fácil de usar en el día a día.
+
+Punto de Venta (POS) Simplificado:
+
+Funcionalidad: Crear una interfaz de ventas de pantalla completa, separada del panel de administración, optimizada para la velocidad.
+
+Implementación:
+
+Una nueva página con un diseño minimalista.
+
+Búsqueda de productos optimizada, con posibilidad de usar un lector de código de barras.
+
+Cálculos y registro de la venta en tiempo real.
+
+Notificaciones Automáticas:
+
+Funcionalidad: Enviar correos electrónicos o notificaciones dentro de la app para eventos importantes.
+
+Implementación:
+
+Notificación por correo al administrador cuando un producto llega a su stock mínimo.
+
+Recordatorio por correo al cliente cuando una factura a crédito está por vencer.
+
+Ruta de Desarrollo Sugerida para V2
+No tenemos que construir todo a la vez. Mi recomendación sería seguir este orden:
+
+Facturación Electrónica: Es un requisito legal y la funcionalidad más importante que falta.
+
+Cuentas por Cobrar / Pagar: Es la segunda necesidad financiera más grande después de la facturación.
+
+Stock Mínimo y Máximo: Es una mejora relativamente fácil de implementar que añade muchísimo valor al control de inventario.
+
+Punto de Venta (POS): Mejora drásticamente la operación diaria.
+
+Con este plan, tu aplicación pasará de ser un excelente sistema de inventario a una solución de gestión empresarial integral. ¡Felicidades por llegar hasta aquí!
+
+
+
+
+OTRAS IDEAS
+
+Plan de Desarrollo: Versión 2.0 - De Sistema de Inventario a Herramienta de Gestión
+La Versión 1.0 ha sentado las bases de un sistema de inventario y ventas robusto. La Versión 2.0 se enfocará en transformar esta base en una herramienta de gestión financiera y operativa integral.
+
+Módulo 1: Finanzas y Cuentas Corrientes (Máxima Prioridad)
+Este módulo es el corazón de la V2 y añade el control financiero que todo negocio necesita.
+
+Cuentas por Cobrar (Ventas a Crédito):
+
+Objetivo: Permitir registrar ventas que no se pagan de inmediato y llevar un control de la cartera de clientes.
+
+Funcionalidades Clave:
+
+En los módulos de Venta y POS, añadir una opción de "Condición de Pago" (ej: Contado, Crédito 15 días, Crédito 30 días).
+
+Añadir un estado a cada venta: Pagada, Pendiente de Pago, Vencida.
+
+Crear un nuevo módulo para registrar los abonos o pagos que los clientes realizan a sus facturas pendientes.
+
+Un nuevo Reporte de Cartera para ver el estado de las deudas de los clientes, las fechas de vencimiento y los saldos pendientes.
+
+Cuentas por Pagar (Compras a Crédito):
+
+Objetivo: Gestionar las deudas con los proveedores.
+
+Funcionalidades Clave:
+
+Añadir "Condición de Pago" al módulo de Compras.
+
+Registrar los pagos que se realizan a las facturas de los proveedores.
+
+Un Reporte de Cuentas por Pagar para tener un control claro de las obligaciones financieras del negocio.
+
+Módulo 2: Inteligencia de Inventario y Operaciones
+El objetivo es hacer el inventario más inteligente y proactivo.
+
+Stock Mínimo y Máximo por Producto:
+
+Objetivo: Automatizar las alertas de inventario para optimizar las compras.
+
+Funcionalidades Clave:
+
+Añadir dos nuevos campos en el formulario de Productos: Stock Mínimo y Stock Máximo.
+
+Mejorar el widget del Dashboard para que la tabla de "Bajo Stock" use el umbral de Stock Mínimo de cada producto en lugar de un valor fijo.
+
+Reporte de Sugerencias de Compra:
+
+Objetivo: Generar órdenes de compra sugeridas de forma automática.
+
+Funcionalidades Clave:
+
+Un nuevo reporte que analice los productos que están por debajo de su stock mínimo.
+
+El reporte sugerirá la cantidad a comprar para llegar al Stock Máximo definido.
+
+Un botón para convertir estas sugerencias en una orden de compra real.
+
+Módulo 3: Facturación Electrónica
+Este es el gran módulo final que hace que la aplicación cumpla con todos los requisitos fiscales.
+
+Integración con Proveedor Tecnológico:
+
+Objetivo: Conectar el sistema a un proveedor autorizado por la DIAN (como Factus, que mencionaste).
+
+Funcionalidades Clave:
+
+Añadir un botón "Generar Factura Electrónica" en la vista de cada venta.
+
+Enviar los datos de la venta (cliente, productos, totales) a la API del proveedor.
+
+Recibir la respuesta del proveedor (el estado de la factura y el código CUFE) y guardarla en nuestra tabla electronic_documents.
+
+Mostrar el estado de la factura (Aceptada, Rechazada) en la vista de la venta.
+
+Un botón para descargar el PDF oficial generado por el proveedor.
+
+Este plan nos da una ruta clara y organizada para la V2. Cuando estés listo, podemos empezar por el primer punto: las Cuentas por Cobrar. Por ahora, ¡felicidades por haber completado esta primera gran fase!

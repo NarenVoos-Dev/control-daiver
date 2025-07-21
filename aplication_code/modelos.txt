@@ -1,0 +1,456 @@
+<?php
+
+// File: app/Models/Business.php
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+class Business extends Model
+{
+    use HasFactory;
+
+    protected $fillable = ['name', 'nit'];
+
+    /**
+     * Un negocio puede tener muchos usuarios.
+     */
+    public function users()
+    {
+        return $this->hasMany(User::class);
+    }
+
+    /**
+     * Un negocio tiene muchos productos.
+     */
+    public function products()
+    {
+        return $this->hasMany(Product::class);
+    }
+
+    /**
+     * Un negocio tiene muchos clientes.
+     */
+    public function clients()
+    {
+        return $this->hasMany(Client::class);
+    }
+
+    /**
+     * Un negocio tiene muchos proveedores.
+     */
+    public function suppliers()
+    {
+        return $this->hasMany(Supplier::class);
+    }
+
+    /**
+     * Un negocio tiene muchas compras.
+     */
+    public function purchases()
+    {
+        return $this->hasMany(Purchase::class);
+    }
+
+    /**
+     * Un negocio tiene muchas ventas.
+     */
+    public function sales()
+    {
+        return $this->hasMany(Sale::class);
+    }
+}
+
+// -----------------------------------------------------------------------------
+
+// File: app/Models/User.php
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
+use Spatie\Permission\Traits\HasRoles;
+
+class User extends Authenticatable
+{
+    use HasFactory, Notifiable, HasRoles;
+
+    protected $fillable = [
+        'name',
+        'email',
+        'password',
+        'business_id',
+    ];
+
+    protected $hidden = [
+        'password',
+        'remember_token',
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'email_verified_at' => 'datetime',
+            'password' => 'hashed',
+        ];
+    }
+
+    /**
+     * Un usuario pertenece a un negocio.
+     */
+    public function business()
+    {
+        return $this->belongsTo(Business::class);
+    }
+}
+
+
+// -----------------------------------------------------------------------------
+
+// File: app/Models/Category.php
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+class Category extends Model
+{
+    use HasFactory;
+
+    protected $fillable = ['business_id', 'name'];
+
+    /**
+     * Una categoría pertenece a un negocio.
+     */
+    public function business()
+    {
+        return $this->belongsTo(Business::class);
+    }
+
+    /**
+     * Una categoría puede tener muchos productos.
+     */
+    public function products()
+    {
+        return $this->hasMany(Product::class);
+    }
+}
+
+
+// -----------------------------------------------------------------------------
+
+// File: app/Models/Product.php
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+class Product extends Model
+{
+    use HasFactory;
+
+    protected $fillable = [
+        'business_id',
+        'category_id',
+        'name',
+        'sku',
+        'unit',
+        'price',
+        'cost',
+        'stock'
+    ];
+
+    /**
+     * Un producto pertenece a un negocio.
+     */
+    public function business()
+    {
+        return $this->belongsTo(Business::class);
+    }
+
+    /**
+     * Un producto pertenece a una categoría.
+     */
+    public function category()
+    {
+        return $this->belongsTo(Category::class);
+    }
+
+    /**
+     * Un producto tiene muchos movimientos de stock.
+     */
+    public function stockMovements()
+    {
+        return $this->hasMany(StockMovement::class);
+    }
+}
+
+// -----------------------------------------------------------------------------
+
+// File: app/Models/Client.php
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+class Client extends Model
+{
+    use HasFactory;
+
+    protected $fillable = ['business_id', 'name', 'document', 'phone', 'email'];
+
+    /**
+     * Un cliente pertenece a un negocio.
+     */
+    public function business()
+    {
+        return $this->belongsTo(Business::class);
+    }
+    
+    /**
+     * Un cliente puede tener muchas ventas.
+     */
+    public function sales()
+    {
+        return $this->hasMany(Sale::class);
+    }
+}
+
+// -----------------------------------------------------------------------------
+
+// File: app/Models/Supplier.php
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+class Supplier extends Model
+{
+    use HasFactory;
+    
+    protected $fillable = ['business_id', 'name', 'document', 'phone', 'email'];
+
+    /**
+     * Un proveedor pertenece a un negocio.
+     */
+    public function business()
+    {
+        return $this->belongsTo(Business::class);
+    }
+    
+    /**
+     * Un proveedor puede tener muchas compras asociadas.
+     */
+    public function purchases()
+    {
+        return $this->hasMany(Purchase::class);
+    }
+}
+
+// -----------------------------------------------------------------------------
+
+// File: app/Models/Purchase.php
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+class Purchase extends Model
+{
+    use HasFactory;
+
+    protected $fillable = ['business_id', 'supplier_id', 'date', 'total'];
+
+    /**
+     * Una compra pertenece a un negocio.
+     */
+    public function business()
+    {
+        return $this->belongsTo(Business::class);
+    }
+
+    /**
+     * Una compra es hecha a un proveedor.
+     */
+    public function supplier()
+    {
+        return $this->belongsTo(Supplier::class);
+    }
+
+    /**
+     * Una compra tiene muchos items (productos).
+     */
+    public function items()
+    {
+        return $this->hasMany(PurchaseItem::class);
+    }
+}
+
+// -----------------------------------------------------------------------------
+
+// File: app/Models/PurchaseItem.php
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+class PurchaseItem extends Model
+{
+    use HasFactory;
+    
+    public $timestamps = false; // Los items no necesitan timestamps propios
+    protected $fillable = ['purchase_id', 'product_id', 'quantity', 'price'];
+
+    /**
+     * Un item de compra pertenece a una compra.
+     */
+    public function purchase()
+    {
+        return $this->belongsTo(Purchase::class);
+    }
+
+    /**
+     * Un item de compra corresponde a un producto.
+     */
+    public function product()
+    {
+        return $this->belongsTo(Product::class);
+    }
+}
+
+// -----------------------------------------------------------------------------
+
+// File: app/Models/Sale.php
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+class Sale extends Model
+{
+    use HasFactory;
+    
+    protected $fillable = ['business_id', 'client_id', 'date', 'subtotal', 'tax', 'total'];
+
+    /**
+     * Una venta pertenece a un negocio.
+     */
+    public function business()
+    {
+        return $this->belongsTo(Business::class);
+    }
+
+    /**
+     * Una venta pertenece a un cliente.
+     */
+    public function client()
+    {
+        return $this->belongsTo(Client::class);
+    }
+
+    /**
+     * Una venta tiene muchos items (productos).
+     */
+    public function items()
+    {
+        return $this->hasMany(SaleItem::class);
+    }
+
+    /**
+     * Una venta tiene un documento electrónico asociado.
+     */
+    public function electronicDocument()
+    {
+        return $this->hasOne(ElectronicDocument::class);
+    }
+}
+
+// -----------------------------------------------------------------------------
+
+// File: app/Models/SaleItem.php
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+class SaleItem extends Model
+{
+    use HasFactory;
+    
+    public $timestamps = false;
+    protected $fillable = ['sale_id', 'product_id', 'quantity', 'price'];
+
+    /**
+     * Un item de venta pertenece a una venta.
+     */
+    public function sale()
+    {
+        return $this->belongsTo(Sale::class);
+    }
+
+    /**
+     * Un item de venta corresponde a un producto.
+     */
+    public function product()
+    {
+        return $this->belongsTo(Product::class);
+    }
+}
+
+// -----------------------------------------------------------------------------
+
+// File: app/Models/StockMovement.php
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+class StockMovement extends Model
+{
+    use HasFactory;
+    
+    protected $fillable = ['product_id', 'type', 'quantity', 'source_type', 'source_id'];
+
+    /**
+     * Un movimiento de stock pertenece a un producto.
+     */
+    public function product()
+    {
+        return $this->belongsTo(Product::class);
+    }
+
+    /**
+     * Relación polimórfica para el origen del movimiento (puede ser una Venta, Compra, etc.).
+     */
+    public function source()
+    {
+        return $this->morphTo();
+    }
+}
+
+// -----------------------------------------------------------------------------
+
+// File: app/Models/ElectronicDocument.php
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+class ElectronicDocument extends Model
+{
+    use HasFactory;
+    
+    protected $fillable = ['sale_id', 'status', 'cufe', 'response_payload'];
+
+    protected $casts = [
+        'response_payload' => 'array', // Convertir el JSON a array automáticamente
+    ];
+
+    /**
+     * Un documento electrónico pertenece a una venta.
+     */
+    public function sale()
+    {
+        return $this->belongsTo(Sale::class);
+    }
+}

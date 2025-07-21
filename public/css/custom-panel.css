@@ -1,0 +1,51 @@
+/*
+  Este código personaliza el estilo del ítem activo en el menú lateral (sidebar).
+*/
+
+/* CAMBIO: Estilo para el ítem activo, ahora con borde izquierdo */
+.fi-sidebar-item.fi-active {
+  /* Fondo gris muy claro */
+  background-color: #f3f4f6 !important; /* gray-100 de Tailwind */
+  /* Borde izquierdo con el color primario de la app */
+  border-left: 4px solid #635bff !important;
+}
+
+/* Estilo para el texto del ítem activo */
+.fi-sidebar-item.fi-active .fi-sidebar-item-label {
+  /* El texto del ítem activo también toma el color primario */
+  color: #635bff !important;
+  font-weight: 600 !important; /* Hacemos el texto un poco más grueso */
+}
+
+/* Estilo para el ícono del ítem activo */
+.fi-sidebar-item.fi-active .fi-sidebar-item-icon {
+  /* El ícono también toma el color primario */
+  color: #635bff !important;
+}
+
+/* Opcional: Estilo al pasar el mouse sobre el ítem activo */
+.fi-sidebar-item.fi-active:hover {
+    background-color: #e5e7eb !important; /* Un gris ligeramente más oscuro para el hover */
+}
+
+
+/* --- Estilo para el efecto de esquina "recortada" --- */
+/*
+  Este código crea un pseudo-elemento en la esquina superior del área de contenido principal.
+  Usa un truco de box-shadow para "dibujar" una curva que coincide con el color
+  de fondo del panel, creando la ilusión de un recorte.
+*/
+.fi-main::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 20px;
+    height: 20px;
+    /* Dibuja un "cuadrado" de sombra con el color de fondo del panel */
+    box-shadow: -10px -10px 0 10px var(--body-bg);
+    /* Redondea la esquina inferior derecha de la sombra para crear la curva */
+    border-bottom-right-radius: 20px;
+}
+
+

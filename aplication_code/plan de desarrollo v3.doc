@@ -1,0 +1,138 @@
+Plan de Desarrollo: Versión 2.0 - De Sistema de Inventario a Herramienta de Gestión
+La Versión 2.0 se centrará en cuatro áreas clave: Finanzas y Facturación, Inteligencia de Inventario, Experiencia de Usuario, y Administración Avanzada.
+
+Módulo 1: Finanzas y Facturación (La Mayor Prioridad)
+Este es el siguiente gran paso para que el sistema sea comercialmente viable.
+
+Facturación Electrónica:
+
+Funcionalidad: Integrar la aplicación con un proveedor tecnológico autorizado por la DIAN (como Factus, Siigo, Alegra).
+
+Implementación:
+
+Añadir un botón "Generar Factura Electrónica" en la vista de cada venta.
+
+Enviar los datos de la venta al proveedor vía API.
+
+Recibir y almacenar la respuesta (CUFE, estado de la factura) en nuestra tabla electronic_documents.
+
+Enviar automáticamente el PDF de la factura al correo del cliente.
+
+Cuentas por Cobrar (Ventas a Crédito):
+
+Funcionalidad: Permitir registrar ventas que no se pagan de inmediato.
+
+Implementación:
+
+Modificar el SaleResource para añadir una opción de "Condición de Pago" (Contado, Crédito 30 días, etc.).
+
+Añadir un estado a las ventas (Pagada, Pendiente, Vencida).
+
+Crear un nuevo Resource para registrar los abonos o pagos que los clientes hacen a sus facturas a crédito.
+
+Un reporte nuevo para ver el estado de la cartera de clientes.
+
+Cuentas por Pagar (Compras a Crédito):
+
+Funcionalidad: El equivalente a las cuentas por cobrar, pero para las compras que haces a tus proveedores.
+
+Implementación: Muy similar al de Cuentas por Cobrar, pero aplicado al módulo de Compras.
+
+Módulo 2: Inteligencia de Inventario
+Vamos más allá de solo saber cuánto stock hay.
+
+Stock Mínimo y Máximo:
+
+Funcionalidad: Permitir definir, para cada producto, un nivel de stock mínimo (cuándo comprar) y máximo (cuánto comprar).
+
+Implementación:
+
+Añadir los campos min_stock y max_stock a la tabla products.
+
+Mejorar el widget del Dashboard para que las alertas de bajo stock usen estos nuevos valores en lugar de un número fijo.
+
+Sugerencias de Compra:
+
+Funcionalidad: Un nuevo reporte que analice la velocidad de venta de los productos y, basado en el stock actual y el stock mínimo, genere una lista de "Sugerencias de Compra" para optimizar el inventario.
+
+Módulo 3: Experiencia de Usuario y Automatización
+Hacer el sistema más rápido y fácil de usar en el día a día.
+
+Punto de Venta (POS) Simplificado:
+
+Funcionalidad: Crear una interfaz de ventas de pantalla completa, separada del panel de administración, optimizada para la velocidad.
+
+Implementación:
+
+Una nueva página con un diseño minimalista.
+
+Búsqueda de productos optimizada, con posibilidad de usar un lector de código de barras.
+
+Cálculos y registro de la venta en tiempo real.
+
+Notificaciones Automáticas:
+
+Funcionalidad: Enviar correos electrónicos o notificaciones dentro de la app para eventos importantes.
+
+Implementación:
+
+Notificación por correo al administrador cuando un producto llega a su stock mínimo.
+
+Recordatorio por correo al cliente cuando una factura a crédito está por vencer.
+
+Visión Final: Versión 3.0 - Plataforma de Crecimiento Empresarial
+La V3 transforma la aplicación de una herramienta de gestión a una plataforma estratégica para la expansión del negocio.
+
+Módulo 4: Multi-Bodega y Logística Avanzada
+Gestión de Múltiples Bodegas:
+
+Funcionalidad: Permitir que un solo Business tenga varias sucursales o bodegas, cada una con su propio stock.
+
+Implementación:
+
+Crear una tabla warehouses (bodegas) relacionada con businesses.
+
+Modificar la tabla stock_movements para incluir un warehouse_id y controlar el inventario por ubicación.
+
+En las ventas y compras, permitir seleccionar desde qué bodega se realiza la operación.
+
+Transferencias entre Bodegas:
+
+Funcionalidad: Crear un nuevo módulo para registrar el movimiento de mercancía entre las bodegas de un mismo negocio, generando una salida en el origen y una entrada en el destino.
+
+Módulo 5: CRM y Fidelización de Clientes
+Historial y Segmentación de Clientes:
+
+Funcionalidad: En la ficha de cada cliente, mostrar un historial completo de sus compras, productos favoritos y frecuencia.
+
+Implementación: Un nuevo tab en la vista del cliente que muestre esta información analítica.
+
+Sistema de Puntos o Descuentos por Nivel:
+
+Funcionalidad: Un programa de lealtad simple donde los clientes acumulan puntos con cada compra, que luego pueden canjear por descuentos.
+
+Módulo 6: Business Intelligence y Análisis Avanzado
+Reportes Financieros:
+
+Funcionalidad: Ir más allá de los reportes operativos y generar análisis financieros.
+
+Implementación:
+
+Estado de Pérdidas y Ganancias (P&G): Un reporte que, basado en los totales de venta y los costos de los productos vendidos, calcule la utilidad bruta por período.
+
+Análisis de Rentabilidad: Un reporte que muestre cuáles son los productos y categorías más rentables.
+
+Dashboard Personalizable:
+
+Funcionalidad: Permitir que los usuarios administradores puedan elegir qué widgets y reportes quieren ver en su página de inicio.
+
+Módulo 7: Ecosistema e Integraciones
+API Pública para Desarrolladores:
+
+Funcionalidad: Exponer de forma segura los endpoints que hemos creado (productos, ventas) para que la aplicación pueda integrarse con otros sistemas, como una tienda de e-commerce (Shopify, WooCommerce).
+
+Integración con Pasarelas de Pago:
+
+Funcionalidad: En el módulo de Cuentas por Cobrar, añadir un botón "Pagar Factura Online" que genere un enlace de pago para el cliente a través de servicios como Mercado Pago o Wompi.
+
+Con este plan de V2 y V3, la aplicación no solo cubriría todas las necesidades de una ferretería, sino que se convertiría en una plataforma robusta, escalable y estratégica para el crecimiento del negocio.
