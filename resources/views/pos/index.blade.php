@@ -4,58 +4,7 @@
 @section('page-title', 'Punto de Venta')
 
 @section('content')
-    <!--<div class="flex flex-col h-full gap-6 md:flex-row">
-        {{-- Columna Izquierda: Catálogo --}}
-        <div class="flex flex-col md:w-7/12">
-            <div class="flex flex-col h-full p-4 bg-white rounded-lg shadow">
-                <input type="text" id="product-search" placeholder="Buscar producto..." class="w-full px-4 py-2 mb-4 border rounded-lg">
-
-                {{-- Tarjetas de Categorías --}}
-                <div id="category-cards" class="grid grid-cols-2 gap-4 mb-4">
-                    @foreach ($categories as $category)
-                        <div class="p-4 text-center text-white bg-blue-600 rounded-lg cursor-pointer category-card" data-id="{{ $category->id }}">
-                            <p class="font-bold">{{ $category->name }}</p>
-                        </div>
-                    @endforeach
-                </div>
-                <button id="back-to-categories" class="hidden px-4 py-2 mb-4 text-white bg-gray-500 rounded">
-                        ← Volver a Categorías
-                </button>
-                <div id="product-list" class="flex-grow pr-2 space-y-4 overflow-y-auto"></div>
-            </div>
-        </div>
-
-        {{-- Columna Derecha: Carrito --}}
-        <div class="flex flex-col md:w-5/12">
-            <div class="flex flex-col h-full p-4 bg-white rounded-lg shadow">
-                <div class="pb-4 mb-4 border-b">
-                    <div id="client-display" class="hidden">
-                        <div class="flex items-center justify-between">
-                            <div><p class="text-sm">Cliente:</p><p id="selected-client-name" class="text-lg font-bold text-blue-600"></p></div>
-                            <button id="remove-client-btn" class="text-xl font-bold text-red-500">&times;</button>
-                        </div>
-                    </div>
-                    <div id="client-search-area">
-                        <div class="flex items-center space-x-2">
-                            <div class="relative flex-grow">
-                                <input type="text" id="client-search" placeholder="Buscar cliente..." class="w-full px-4 py-2 border rounded-lg">
-                                <div id="client-results" class="absolute z-10 hidden w-full mt-1 bg-white border rounded-lg shadow-lg"></div>
-                            </div>
-                            <button id="add-client-btn" class="p-2 text-white bg-blue-500 rounded-lg">+</button>
-                        </div>
-                    </div>
-                </div>
-                <div id="cart-items" class="flex-grow py-2 pr-2 space-y-2 overflow-y-auto"><p class="text-center text-gray-500">El carrito está vacío.</p></div>
-                <div class="flex-shrink-0 pt-4 space-y-2 border-t">
-                    <div class="flex justify-between"><span>Subtotal</span><span id="subtotal">$0.00</span></div>
-                    <div class="flex justify-between"><span>IVA</span><span id="tax">$0.00</span></div>
-                    <div class="flex justify-between text-xl font-bold"><span>TOTAL</span><span id="total">$0.00</span></div>
-                    <div class="pt-4"><button id="checkout-btn" class="w-full py-3 font-bold text-white bg-green-600 rounded-lg">COBRAR</button></div>
-                </div>
-            </div>
-        </div>
-    </div>-->
-        <main class="flex flex-col gap-6 p-4 md:flex-row" style="height: calc(100vh - 76px);">
+    <main class="flex flex-col gap-6 p-4 md:flex-row" style="height: calc(100vh - 76px);">
         {{-- Columna Izquierda: Catálogo --}}
         <div class="flex flex-col md:w-8/12">
             <div class="flex flex-col h-full p-4 bg-white rounded-lg shadow">
@@ -63,7 +12,7 @@
                     <button id="back-to-categories" class="hidden p-2 text-white bg-green-600 border rounded-lg hover:bg-green-500">Volver</button>
                     <input type="text" id="search-input" placeholder="Buscar..." class="w-full px-4 py-2 border rounded-lg">
                 </div>
-                <div id="catalog-view" class="flex-grow pr-2 space-y-4 overflow-y-auto"></div>
+                <div id="catalog-view" class="flex-grow pr-2 space-y-4 overflow-y-auto p-4"></div>
             </div>
         </div>
 
@@ -92,6 +41,14 @@
                     </div>
                 </div>
                 <div id="cart-items" class="flex-grow py-2 pr-2 space-y-2 overflow-y-auto"><p class="text-center text-gray-700">El carrito está vacío.</p></div>
+                
+                {{-- CAMBIO: Se añade el área de notas --}}
+               <!-- <div class="pt-2">
+                    <label for="sale-notes" class="text-sm font-medium text-gray-700">Notas de la Venta</label>
+                    <textarea id="sale-notes" rows="2" class="w-full p-2 mt-1 border rounded-lg" placeholder="Añadir una nota..."></textarea>
+                </div>-->
+
+
                 <div class="flex-shrink-0 pt-4 space-y-2 border-t">
                     <div class="flex justify-between"><span>Subtotal</span><span id="subtotal">$0.00</span></div>
                     <div class="flex justify-between"><span>IVA</span><span id="tax">$0.00</span></div>
@@ -100,58 +57,59 @@
                 </div>
             </div>
         </div>
+           {{-- Modal para Nuevo Cliente --}}
+        <div id="client-modal" class="fixed inset-0 z-50 flex items-center justify-center hidden transition-opacity bg-black bg-opacity-60">
+            <div class="w-full max-w-md p-6 mx-4 bg-white rounded-lg shadow-xl dark:bg-gray-800">
+                
+                {{-- Encabezado del Modal --}}
+                <div class="flex items-center justify-between pb-3 border-b dark:border-gray-700">
+                    <h2 class="text-2xl font-bold text-gray-800 dark:text-white">Crear Nuevo Cliente</h2>
+                </div>
+
+                {{-- Formulario --}}
+                <form id="new-client-form" class="mt-6 space-y-4">
+                    <div>
+                        <label for="new-client-name" class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Nombre del Cliente</label>
+                        <input type="text" id="new-client-name" placeholder="Ej: Juan Pérez" class="w-full px-3 py-2 text-gray-700 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-gray-700 dark:text-white dark:border-gray-600">
+                    </div>
+                    <div>
+                        <label for="new-client-document" class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Documento (NIT/Cédula)</label>
+                        <input type="text" id="new-client-document" placeholder="Ej: 123456789" class="w-full px-3 py-2 text-gray-700 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-gray-700 dark:text-white dark:border-gray-600">
+                    </div>
+
+                    {{-- Botones de Acción --}}
+                    <div class="flex justify-end pt-4 space-x-4">
+                        <button type="button" id="cancel-client-btn" class="px-4 py-2 font-bold text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500">Cancelar</button>
+                        <button type="submit" class="px-4 py-2 font-bold text-white rounded-lg hover:opacity-90" style="background-color: #635bff;">Guardar Cliente</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <!--- Modal de Confirmación de Venta -->
+        <div id="checkout-modal" class="fixed inset-0 z-50 flex items-center justify-center hidden bg-gray-800 bg-opacity-50">
+            <div class="w-1/3 p-6 bg-white rounded-lg shadow-lg">
+                <h2 class="mb-4 text-2xl font-bold">Finalizar Venta</h2>
+                <div class="space-y-4"><div>
+                    <label class="block text-sm font-medium text-gray-700">Total a Pagar</label>
+                    <input type="text" id="checkout-total" readonly class="w-full p-2 mt-1 text-2xl font-bold bg-gray-100 border rounded"></div>
+                    <div>
+                        <label for="received-amount" class="block text-sm font-medium text-gray-700">Dinero Recibido</label>
+                        <input type="number" id="received-amount" class="w-full p-2 mt-1 border rounded">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Vuelto</label>
+                        <input type="text" id="change-due" readonly class="w-full p-2 mt-1 font-bold bg-gray-100 border rounded">
+                    </div>
+                </div>
+                <div class="flex justify-end mt-6">
+                    <button type="button" id="cancel-checkout-btn" class="px-4 py-2 mr-2 bg-gray-300 rounded">Cancelar</button>
+                    <button type="button" id="confirm-sale-btn" class="px-4 py-2 text-white bg-green-600 rounded">Confirmar Venta</button>
+                </div>
+            </div>
+        </div>
     </main>
 
-    {{-- Modal para Nuevo Cliente --}}
-<div id="client-modal" class="fixed inset-0 z-50 flex items-center justify-center hidden transition-opacity bg-black bg-opacity-60">
-    <div class="w-full max-w-md p-6 mx-4 bg-white rounded-lg shadow-xl dark:bg-gray-800">
-        
-        {{-- Encabezado del Modal --}}
-        <div class="flex items-center justify-between pb-3 border-b dark:border-gray-700">
-            <h2 class="text-2xl font-bold text-gray-800 dark:text-white">Crear Nuevo Cliente</h2>
-        </div>
-
-        {{-- Formulario --}}
-        <form id="new-client-form" class="mt-6 space-y-4">
-            <div>
-                <label for="new-client-name" class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Nombre del Cliente</label>
-                <input type="text" id="new-client-name" placeholder="Ej: Juan Pérez" class="w-full px-3 py-2 text-gray-700 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-gray-700 dark:text-white dark:border-gray-600">
-            </div>
-            <div>
-                <label for="new-client-document" class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Documento (NIT/Cédula)</label>
-                <input type="text" id="new-client-document" placeholder="Ej: 123456789" class="w-full px-3 py-2 text-gray-700 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-gray-700 dark:text-white dark:border-gray-600">
-            </div>
-
-            {{-- Botones de Acción --}}
-            <div class="flex justify-end pt-4 space-x-4">
-                <button type="button" id="cancel-client-btn" class="px-4 py-2 font-bold text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500">Cancelar</button>
-                <button type="submit" class="px-4 py-2 font-bold text-white rounded-lg hover:opacity-90" style="background-color: #635bff;">Guardar Cliente</button>
-            </div>
-        </form>
-    </div>
-</div>
-    <!--- Modal de Confirmación de Venta -->
-    <div id="checkout-modal" class="fixed inset-0 z-50 flex items-center justify-center hidden bg-gray-800 bg-opacity-50">
-        <div class="w-1/3 p-6 bg-white rounded-lg shadow-lg">
-            <h2 class="mb-4 text-2xl font-bold">Finalizar Venta</h2>
-            <div class="space-y-4"><div>
-                <label class="block text-sm font-medium text-gray-700">Total a Pagar</label>
-                <input type="text" id="checkout-total" readonly class="w-full p-2 mt-1 text-2xl font-bold bg-gray-100 border rounded"></div>
-                <div>
-                    <label for="received-amount" class="block text-sm font-medium text-gray-700">Dinero Recibido</label>
-                    <input type="number" id="received-amount" class="w-full p-2 mt-1 border rounded">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">Vuelto</label>
-                    <input type="text" id="change-due" readonly class="w-full p-2 mt-1 font-bold bg-gray-100 border rounded">
-                </div>
-            </div>
-            <div class="flex justify-end mt-6">
-                <button type="button" id="cancel-checkout-btn" class="px-4 py-2 mr-2 bg-gray-300 rounded">Cancelar</button>
-                <button type="button" id="confirm-sale-btn" class="px-4 py-2 text-white bg-green-600 rounded">Confirmar Venta</button>
-            </div>
-        </div>
-    </div>
+    
 @endsection
 
 @push('scripts')
@@ -268,6 +226,7 @@
                 html += `</div>`;
                 $('#catalog-view').html(html || '<p>No se encontraron productos.</p>');
             }
+           
 
             function showCategories() { currentView = 'categories'; selectedCategoryId = null; $('#back-to-categories').addClass('hidden'); $('#search-input').val('').attr('placeholder', 'Buscar categoría...'); renderCategories(); }
             function showProducts(categoryId) { currentView = 'products'; selectedCategoryId = categoryId; $('#back-to-categories').removeClass('hidden'); $('#search-input').val('').attr('placeholder', 'Buscar producto...'); loadProducts('', categoryId); }
@@ -359,7 +318,11 @@
             function saveSale() {
                 if (!selectedClientId) { showAlert('Acción Requerida', 'Por favor, seleccione un cliente.', 'warning'); return; }
                 if ($.isEmptyObject(cart)) { showAlert('Carrito Vacío', 'No hay productos en el carrito para vender.', 'warning'); return; }
-                ajaxRequest('/api/pos/store-sale', 'POST', { client_id: selectedClientId, cart: Object.values(cart) })
+
+                // CAMBIO: Se obtiene el valor de las notas
+                const notes = $('#sale-notes').val();
+
+                ajaxRequest('/api/pos/store-sale', 'POST', { client_id: selectedClientId, cart: Object.values(cart), notes: notes })
                     .done(response => {
                         if (response.success) {
                             showAlert('Venta Exitosa', response.message);
@@ -379,7 +342,7 @@
             }
             
             function debounce(func, delay) { let timeout; return function(...args) { clearTimeout(timeout); timeout = setTimeout(() => func.apply(this, args), delay); }; }
-            function resetPos() { cart = {}; renderCart(); removeClient(); $('#checkout-modal').addClass('hidden'); showCategories(); }
+            function resetPos() { cart = {}; renderCart(); removeClient();$('#sale-notes').val(''); $('#checkout-modal').addClass('hidden'); }
 
             // --- INICIALIZACIÓN ---
             showCategories();

@@ -50,6 +50,10 @@ class SaleResource extends Resource
                                     return \App\Models\Client::create($data)->id;
                                 }),
                             Forms\Components\DatePicker::make('date')->label('Fecha de la Venta')->required()->default(now()),
+                            Forms\Components\Toggle::make('is_cash')
+                                ->label('Venta de Contado')
+                                ->default(false)
+                                ->live(),    
                         ]),
 
                     Forms\Components\Wizard\Step::make('Items de la Venta')
@@ -92,7 +96,7 @@ class SaleResource extends Resource
         return $table
         ->columns([
             Tables\Columns\TextColumn::make('id')
-            ->label('N°'),
+            ->label('N° Venta'),
             Tables\Columns\TextColumn::make('client.name')
             ->label('Cliente')
             ->searchable(),
@@ -106,6 +110,24 @@ class SaleResource extends Resource
             Tables\Columns\TextColumn::make('date')
             ->date('d/m/Y')
             ->label('Fecha'),
+            Tables\Columns\IconColumn::make('is_cash')
+                ->label('Condición')
+                ->boolean()
+                ->trueIcon('heroicon-o-check-circle')
+                ->trueColor('success')
+                ->falseIcon('heroicon-o-clock')
+                ->falseColor('warning')
+                ->getStateUsing(fn (Sale $record): bool => $record->is_cash)
+                ->tooltip(fn (Sale $record): string => $record->is_cash ? 'Contado' : 'Crédito'),
+            Tables\Columns\TextColumn::make('status')
+                ->label('Estado')
+                ->badge()
+                ->color(fn (string $state): string => match ($state) {
+                    'Pagada' => 'success',
+                    'Pendiente' => 'warning',
+                    'Vencida' => 'danger',
+                    default => 'gray',
+                }),
             ])
             ->actions([
                 Tables\Actions\ActionGroup::make([

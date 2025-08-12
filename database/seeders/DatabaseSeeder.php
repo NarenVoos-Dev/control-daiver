@@ -15,14 +15,14 @@ class DatabaseSeeder extends Seeder
     {
 
         $this->call([
-            //RolesAndPermissionsSeeder::class,
-            //UserSeeder::class, 
-            //UnitOfMeasureSeeder::class, // <-- AÑADE ESTA LÍNEA
+            RolesAndPermissionsSeeder::class,
+            UserSeeder::class, 
+            UnitOfMeasureSeeder::class, // <-- AÑADE ESTA LÍNEA
               // Luego crea el usuario y le asigna el rol
 
             // Aquí puedes añadir otros seeders en el futuro
             //PRUEBAS
-             ProductAndPurchaseSeeder::class,
+             //ProductAndPurchaseSeeder::class,
         ]);
     }
 }

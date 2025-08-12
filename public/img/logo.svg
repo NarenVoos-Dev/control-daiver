@@ -7,5 +7,5 @@
     <path d="M18 25 L23 30 L37 16" stroke="#000000" stroke-width="3" fill="none" stroke-linecap="round"/>
   </g>
   <!-- Texto -->
-  <text x="70" y="40" font-family="Arial, sans-serif" font-size="30" font-weight="bold" fill="#333">FerreControl</text>
+  <text x="70" y="40" font-family="Arial, sans-serif" font-size="30" font-weight="bold" fill="#333">Ges-Control</text>
 </svg>

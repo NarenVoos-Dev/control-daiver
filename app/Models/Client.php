@@ -11,12 +11,14 @@ class Client extends Model
 
     protected $fillable = 
     [
-        'business_id', 
+        'business_id',
+        'zone_id',
         'name', 
         'document', 
         'phone', 
         'address',
-        'email'
+        'email',
+        'credit_limit'
     ];
 
     /**
@@ -24,7 +26,7 @@ class Client extends Model
      */
     public function business()
     {
-        return $this->belongsTo(Business::class);
+        return $this->belongsTo(\App\Models\Business::class);
     }
     
     /**
@@ -32,6 +34,21 @@ class Client extends Model
      */
     public function sales()
     {
-        return $this->hasMany(Sale::class);
+        return $this->hasMany(\App\Models\Sale::class);
+    }
+
+    public function zone()
+    {
+        return $this->belongsTo(\App\Models\Zone::class);
+    }
+    /**
+     * Calcula la deuda actual del cliente sumando el total de sus ventas
+     * que no están marcadas como 'Pagada'.
+     */
+    public function getCurrentDebt(): float
+    {
+        return $this->sales()
+        ->where('status', '!=', 'Pagada')
+        ->sum('total');
     }
 }

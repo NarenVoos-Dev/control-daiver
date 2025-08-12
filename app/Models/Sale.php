@@ -9,8 +9,15 @@ class Sale extends Model
 {
     use HasFactory;
     
-    protected $fillable = ['business_id', 'client_id', 'date', 'subtotal', 'tax', 'total'];
+    protected $fillable = ['business_id', 'client_id', 'date', 'subtotal', 'tax', 'total','is_cash', 'status'];
 
+    protected $casts = [         
+        'is_cash' => 'boolean',
+        'date' => 'date',
+        'subtotal' => 'decimal:2',
+        'tax' => 'decimal:2',
+        'total' => 'decimal:2',
+    ];
     /**
      * Una venta pertenece a un negocio.
      */
@@ -42,4 +49,5 @@ class Sale extends Model
     {
         return $this->hasOne(ElectronicDocument::class);
     }
+
 }

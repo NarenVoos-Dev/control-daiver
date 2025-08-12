@@ -29,19 +29,7 @@ class PosApiController extends Controller
 
         return response()->json($query->get());
     }
-    /*{
-        $query = Product::query()->where('business_id', auth()->user()->business_id);
 
-        if ($request->filled('category_id')) {
-            $query->where('category_id', $request->input('category_id'));
-        }
-
-        if ($request->filled('search')) {
-            $query->where('name', 'like', '%' . $request->input('search') . '%');
-        }
-
-        return response()->json($query->with('category', 'unitOfMeasure')->limit(50)->get());
-    }*/
 
     public function searchClients(Request $request)
     {
@@ -80,6 +68,7 @@ class PosApiController extends Controller
             'cart.*.price' => 'required|numeric',
             'cart.*.tax_rate' => 'required|numeric',
             'cart.*.unit_of_measure_id' => 'required|exists:unit_of_measures,id',
+            'notes' => 'nullable|string',
         ]);
 
         if ($validator->fails()) { return response()->json(['errors' => $validator->errors()], 422); }

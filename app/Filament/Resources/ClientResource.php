@@ -10,6 +10,7 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use App\Models\Zone;
 
 class ClientResource extends Resource
 {
@@ -57,6 +58,19 @@ class ClientResource extends Resource
                     ->label('Correo Electrónico')
                     ->email()
                     ->maxLength(255),
+
+                Forms\Components\Select::make('zone_id')
+                    ->label('Zona')
+                    ->options(Zone::query()->where('business_id', auth()->user()->business_id)->pluck('name', 'id'))
+                    ->searchable()
+                    ->placeholder('Sin zona asignada'),
+                
+                Forms\Components\TextInput::make('credit_limit')
+                    ->label('Límite de Crédito')
+                    ->numeric()
+                    ->prefix('$')
+                    ->default(0)
+                    ->required(),
             ]);
     }
 
@@ -64,23 +78,19 @@ class ClientResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('name')
-                    ->label('Nombre')
-                    ->searchable(),
-                Tables\Columns\TextColumn::make('document')
-                    ->label('Documento')
-                    ->searchable(),
-                Tables\Columns\TextColumn::make('phone')
-                    ->label('Teléfono'),
-                Tables\Columns\TextColumn::make('email')
-                    ->label('Email')
-                    ->searchable(),
+                Tables\Columns\TextColumn::make('name')->label('Nombre')->searchable(),
+                Tables\Columns\TextColumn::make('zone.name')->label('Zona')->badge(),
+                Tables\Columns\TextColumn::make('credit_limit')->label('Límite Crédito')->money('cop'),
+                Tables\Columns\TextColumn::make('document')->label('Documento')->searchable(),
+                Tables\Columns\TextColumn::make('phone')->label('Teléfono'),
+                Tables\Columns\TextColumn::make('email')->label('Email')->searchable(),
             ])
             ->filters([
                 //
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
+                Tables\Actions\DeleteAction::make(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
