@@ -16,8 +16,13 @@
 
         <!-- Styles -->
         @livewireStyles
+        
+        </style>
     </head>
     <body class="font-sans antialiased">
+          {{-- Contenedor para Alertas Personalizadas --}}
+        <div id="alert-container" class="fixed top-5 right-5 z-50 space-y-4 w-full max-w-sm"></div>
+
         <x-banner />
 
         <div class="min-h-screen bg-gray-100">
@@ -37,6 +42,7 @@
                 {{ $slot }}
             </main>
         </div>
+        <div id="alert-container" class="fixed top-4 right-4 z-50 space-y-3 max-w-sm"></div>
 
         @stack('modals')
 

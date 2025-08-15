@@ -14,4 +14,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/pos/store-sale', [PosApiController::class, 'storeSale']);
     Route::get('/pos/search-clients', [PosApiController::class, 'searchClients']);
     Route::post('/pos/store-client', [PosApiController::class, 'storeClient']);
+    
+    Route::get('/pos/clients/{client}/credit-details', [PosApiController::class, 'getClientCreditDetails']);
+
 });

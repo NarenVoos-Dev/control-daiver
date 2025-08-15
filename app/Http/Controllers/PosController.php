@@ -6,6 +6,8 @@ use App\Models\Category;
 use App\Models\Client;
 use App\Models\UnitOfMeasure;
 use App\Models\Sale;
+use App\Models\Zone;
+use App\Models\Product;
 
 class PosController extends Controller
 {
@@ -13,37 +15,24 @@ class PosController extends Controller
     public function index()
     {
         $user = auth()->user();
+        $businessId = $user->business_id;
+
         $user->tokens()->delete();
         $apiToken = $user->createToken('pos-token')->plainTextToken;
 
         // Solo pasamos los datos esenciales para la carga inicial
         $categories = Category::where('business_id', $user->business_id)->get(['id', 'name']);
+        $hasUncategorized = Product::where('business_id', $businessId)->whereNull('category_id')->exists();
+        if ($hasUncategorized) {
+            $categories->push((object)['id' => 'uncategorized', 'name' => 'Sin Categoría']);
+        }
         $units = UnitOfMeasure::where('business_id', $user->business_id)->get();
+        $zones = Zone::where('business_id', $businessId)->get(['id', 'name']); // <-- OBTENER LAS ZONAS
 
-        return view('pos.index', compact('categories', 'units', 'apiToken'));
+
+        return view('pos.index', compact('categories', 'units', 'apiToken', 'zones'));
     }
-    /*{
-        $user = auth()->user();
-        $businessId = $user->business_id;
-
-        // Generamos un token de API para el usuario autenticado
-        $user->tokens()->delete();
-        $apiToken = $user->createToken('pos-token')->plainTextToken;
-
-        //Cargamos todas las categorias con sus productos
-        $categories = Category::where('business_id', $businessId)
-                                ->with(['products' => fn($q) => $q->with('unitOfMeasure')])
-                                ->get();
-                
-        
-        //$clients = Client::where('business_id', $businessId)->get(['id', 'name']);
-        $units = UnitOfMeasure::where('business_id', $businessId)->get();
-
-        // Pasamos el token a la vista
-        //return view('pos.index', compact('clients', 'units', 'apiToken'));
-        return view('pos.index', compact('categories', 'units', 'apiToken'));
-    }*/
-
+    
     public function salesList()
     {
         $user = auth()->user();

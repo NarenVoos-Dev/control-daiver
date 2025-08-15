@@ -9,7 +9,7 @@ class Sale extends Model
 {
     use HasFactory;
     
-    protected $fillable = ['business_id', 'client_id', 'date', 'subtotal', 'tax', 'total','is_cash', 'status'];
+    protected $fillable = ['business_id', 'client_id', 'date', 'subtotal', 'tax', 'total','is_cash', 'status', 'pending_amount'];
 
     protected $casts = [         
         'is_cash' => 'boolean',
