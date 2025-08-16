@@ -13,6 +13,7 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Filament\Forms\Get;
+use Filament\Notifications\Notification;
 
 use App\Models\Client;
 use App\Models\Sale;
@@ -35,7 +36,7 @@ class PaymentResource extends Resource
                     ->label('Cliente con Deuda')
                     ->options(
                         // Muestra solo clientes que tienen ventas pendientes
-                        Client::whereHas('sales', fn(Builder $query) => $query->where('status', 'Pendiente'))
+                        Client::whereHas('sales', fn(Builder $query) => $query->where('status','!=' ,'Pagada'))
                               ->where('business_id', auth()->user()->business_id)
                               ->pluck('name', 'id')
                     )
@@ -81,8 +82,8 @@ class PaymentResource extends Resource
     {
         return [
             'index' => Pages\ListPayments::route('/'),
-            //'create' => Pages\CreatePayment::route('/create'),
-            //'edit' => Pages\EditPayment::route('/{record}/edit'),
+            'create' => Pages\CreatePayment::route('/create'),
+            'edit' => Pages\EditPayment::route('/{record}/edit'),
         ];
     }
     public static function getEloquentQuery(): Builder

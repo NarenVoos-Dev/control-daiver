@@ -51,7 +51,7 @@ class Client extends Model
     public function getCurrentDebt(): float
     {
         return $this->sales()
-        ->where('status', '!=','Pagada')
+        ->where('status', 'Pendiente')
         ->sum('pending_amount');
     }
 

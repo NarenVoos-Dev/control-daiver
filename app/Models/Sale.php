@@ -10,7 +10,8 @@ class Sale extends Model
     use HasFactory;
     
     protected $fillable = ['business_id', 'client_id', 'date', 'subtotal', 'tax', 'total','is_cash', 'status', 'pending_amount'];
-
+    
+   
     protected $casts = [         
         'is_cash' => 'boolean',
         'date' => 'date',
@@ -18,6 +19,8 @@ class Sale extends Model
         'tax' => 'decimal:2',
         'total' => 'decimal:2',
     ];
+
+    
     /**
      * Una venta pertenece a un negocio.
      */

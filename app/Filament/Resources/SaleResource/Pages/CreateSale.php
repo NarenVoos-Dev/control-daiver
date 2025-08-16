@@ -219,7 +219,10 @@ class CreateSale extends CreateRecord
             }
 
             // Estado según condición de pago
-            $data['status'] = $data['is_cash'] ? 'Pagada' : 'Pendiente';
+            $isCash = $data['is_cash'];
+            $total = $data['total'];
+            $data['status'] = $isCash ? 'Pagada' : 'Pendiente';
+            $data['pending_amount'] = $isCash ? 0 : $total;
             Log::info("Estado asignado: {$data['status']} (is_cash: " . ($data['is_cash'] ? 'true' : 'false') . ")");
 
             // Crear la venta
