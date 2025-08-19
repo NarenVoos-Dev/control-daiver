@@ -6,7 +6,7 @@
             <div class="hidden bg-cover md:block md:w-1/2" style="background-image: url('https://images.unsplash.com/photo-1578575437130-5278ce682728?q=80&w=2070&auto=format&fit=crop');">
                 <div class="flex items-center h-full px-20 bg-gray-900 bg-opacity-40">
                     <div>
-                        <h2 class="text-4xl font-bold text-black">FerreControl</h2>
+                        <h2 class="text-4xl font-bold text-black">Ges-Control</h2>
                         <p class="max-w-xl mt-3 font-semibold text-gray-900">
                             La herramienta definitiva para gestionar tu inventario, ventas y licencias. Todo en un solo lugar.
                         </p>

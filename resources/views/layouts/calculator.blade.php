@@ -20,4 +20,4 @@
         <button class="col-span-2 calculator-btn num">0</button>
         <button class="calculator-btn num">.</button>
     </div>
-</div>
+</div> 

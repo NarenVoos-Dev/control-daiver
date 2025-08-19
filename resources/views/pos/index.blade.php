@@ -4,120 +4,120 @@
 @section('page-title', 'Punto de Venta')
 
 @section('content')
-    <main class="flex flex-col gap-6 p-4 md:flex-row" style="height: calc(100vh - 76px);">
-        {{-- Columna Izquierda: Catálogo --}}
-        <div class="flex flex-col md:w-8/12">
-            <div class="flex flex-col h-full p-4 bg-white rounded-lg shadow">
-                <div class="flex items-center mb-4 space-x-2">
-                    <button id="back-to-categories" class="hidden p-2 text-white bg-green-600 border rounded-lg hover:bg-green-500">Volver</button>
-                    <input type="text" id="search-input" placeholder="Buscar..." class="w-full px-4 py-2 border rounded-lg">
-                </div>
-                <div id="catalog-view" class="flex-grow pr-2 space-y-4 overflow-y-auto p-4"></div>
+<main class="flex flex-col gap-6 p-4 md:flex-row" style="height: calc(100vh - 76px);">
+    {{-- Columna Izquierda: Catálogo --}}
+    <div class="flex flex-col md:w-8/12">
+        <div class="flex flex-col h-full p-4 bg-white rounded-lg shadow">
+            <div class="flex items-center mb-4 space-x-2">
+                <button id="back-to-categories" class="hidden p-2 text-white bg-green-600 border rounded-lg hover:bg-green-500">Volver</button>
+                <input type="text" id="search-input" placeholder="Buscar..." class="w-full px-4 py-2 border rounded-lg">
             </div>
+            <div id="catalog-view" class="flex-grow pr-2 space-y-4 overflow-y-auto p-4"></div>
         </div>
+    </div>
 
-        {{-- Columna Derecha: Carrito --}}
-        <div class="flex flex-col md:w-4/12">
-            <div class="flex flex-col h-full p-4 bg-white rounded-lg shadow">
-                <div class="pb-4 mb-4 border-b">
-                    <div id="client-display" class="hidden"><div class="flex items-center justify-between">
-                        <div>
-                            <p class="text-sm">Cliente:</p>
-                            <p id="selected-client-name" class="text-lg font-bold text-black"></p>
-                        </div>
-                        <button id="remove-client-btn" class="text-xl font-bold text-red-500">&times;</button>
+    {{-- Columna Derecha: Carrito --}}
+    <div class="flex flex-col md:w-4/12">
+        <div class="flex flex-col h-full p-4 bg-white rounded-lg shadow">
+            <div class="pb-4 mb-4 border-b">
+                <div id="client-display" class="hidden"><div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm">Cliente:</p>
+                        <p id="selected-client-name" class="text-lg font-bold text-black"></p>
                     </div>
+                    <button id="remove-client-btn" class="text-xl font-bold text-red-500">&times;</button>
                 </div>
+            </div>
 
-                    <div id="client-search-area"><div class="flex items-center space-x-2">
-                        <div class="relative flex-grow">
-                            <input type="text" id="client-search" placeholder="Buscar cliente..." class="w-full px-4 py-2 border rounded-lg">
-                            <div id="client-results" class="absolute z-10 hidden w-full mt-1 bg-white border rounded-lg shadow-lg">
+                <div id="client-search-area"><div class="flex items-center space-x-2">
+                    <div class="relative flex-grow">
+                        <input type="text" id="client-search" placeholder="Buscar cliente..." class="w-full px-4 py-2 border rounded-lg">
+                        <div id="client-results" class="absolute z-10 hidden w-full mt-1 bg-white border rounded-lg shadow-lg">
 
-                            </div>
-                        </div>
-                        <button id="add-client-btn" class="p-2 text-white bg-black rounded-lg">+</button>
                         </div>
                     </div>
-                </div>
-                <div id="cart-items" class="flex-grow py-2 pr-2 space-y-2 overflow-y-auto"><p class="text-center text-gray-700">El carrito está vacío.</p></div>
-                <div class="flex-shrink-0 pt-4 space-y-2 border-t">
-                    <div class="flex justify-between"><span>Subtotal</span><span id="subtotal">$0.00</span></div>
-                    <div class="flex justify-between"><span>IVA</span><span id="tax">$0.00</span></div>
-                    <div class="flex justify-between text-xl font-bold"><span>TOTAL</span><span id="total">$0.00</span></div>
-                    <div class="pt-4"><button id="checkout-btn" class="w-full py-3 font-bold text-white bg-green-600 rounded-lg">COBRAR</button></div>
+                    <button id="add-client-btn" class="p-2 text-white bg-black rounded-lg">+</button>
+                    </div>
                 </div>
             </div>
-        </div>
-           {{-- Modal para Nuevo Cliente --}}
-        <div id="client-modal" class="fixed inset-0 z-50 flex items-center justify-center hidden bg-black bg-opacity-60 transition-opacity">
-            <div class="w-full max-w-md p-6 mx-4 bg-white rounded-lg shadow-xl dark:bg-gray-300">
-                <div class="flex items-center justify-between pb-3 border-b dark:border-gray-700">
-                    <h2 class="text-2xl font-bold text-gray-800 dark:text-black">Crear Nuevo Cliente</h2>
-                    <button id="cancel-client-btn-icon" class="text-gray-400 hover:text-gray-800 dark:hover:text-gray-300">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                    </button>
-                </div>
-                <form id="new-client-form" class="mt-6 space-y-4">
-                    <div>
-                        <label for="new-client-name" class="block mb-2 text-sm font-medium text-gray-800">Nombre del Cliente</label>
-                        <input type="text" id="new-client-name" placeholder="Ej: Juan Pérez" class="w-full px-3 py-2 text-gray-700 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                    </div>
-                    <div>
-                        <label for="new-client-document" class="block mb-2 text-sm font-medium text-gray-800">Documento (NIT/Cédula)</label>
-                        <input type="text" id="new-client-document" placeholder="Ej: 123456789" class="w-full px-3 py-2 text-gray-700 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                    </div>
-                    <div>
-                        <label for="new-client-zone" class="block mb-2 text-sm font-medium text-gray-800">Zona</label>
-                        <select id="new-client-zone" class="w-full px-3 py-2 text-gray-700 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                            <option value="">Sin Zona</option>
-                            @foreach($zones as $zone)
-                                <option value="{{ $zone->id }}">{{ $zone->name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div>
-                        <label for="new-client-credit-limit" class="block mb-2 text-sm font-medium text-gray-800">Límite de Crédito</label>
-                        <input type="number" id="new-client-credit-limit" value="0" class="w-full px-3 py-2 text-gray-700 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                    </div>
-                    <div class="flex justify-end pt-4 space-x-4">
-                        <button type="button" id="cancel-client-btn" class="px-4 py-2 font-bold text-gray-800 bg-gray-200 rounded-lg hover:bg-gray-300">Cancelar</button>
-                        <button type="submit" class="px-4 py-2 font-bold text-white rounded-lg hover:opacity-90" style="background-color: #635bff;">Guardar Cliente</button>
-                    </div>
-                </form>
+            <div id="cart-items" class="flex-grow py-2 pr-2 space-y-2 overflow-y-auto"><p class="text-center text-gray-700">El carrito está vacío.</p></div>
+            <div class="flex-shrink-0 pt-4 space-y-2 border-t">
+                <div class="flex justify-between"><span>Subtotal</span><span id="subtotal">$0.00</span></div>
+                <div class="flex justify-between"><span>IVA</span><span id="tax">$0.00</span></div>
+                <div class="flex justify-between text-xl font-bold"><span>TOTAL</span><span id="total">$0.00</span></div>
+                <div class="pt-4"><button id="checkout-btn" class="w-full py-3 font-bold text-white bg-green-600 rounded-lg">COBRAR</button></div>
             </div>
         </div>
-        <!--- Modal de Confirmación de Venta -->
-        <div id="checkout-modal" class="fixed inset-0 z-50 flex items-center justify-center hidden bg-gray-800 bg-opacity-50">
-            <div class="w-1/3 p-6 bg-white rounded-lg shadow-lg">
-                <h2 class="mb-4 text-2xl font-bold">Finalizar Venta</h2>
-                <div class="space-y-4"><div>
-                    <label class="block text-sm font-medium text-gray-700">Total a Pagar</label>
-                    <input type="text" id="checkout-total" readonly class="w-full p-2 mt-1 text-2xl font-bold bg-gray-100 border rounded"></div>
-                    <div>
-                        <label for="received-amount" class="block text-sm font-medium text-gray-700">Dinero Recibido</label>
-                        <input type="number" id="received-amount" class="w-full p-2 mt-1 border rounded">
-                    </div>
-                    {{-- CAMBIO: Se añade el área de condicion de pago --}}
-                    <div id="payment-condition-area" class="hidden pt-4 border-t">
-                        <label class="block mb-2 text-sm font-medium">Condición de Pago</label>
-                        <div class="flex gap-4">
-                            <label class="flex items-center"><input type="radio" name="payment_condition" value="cash" checked class="mr-2"> Contado</label>
-                            <label class="flex items-center"><input type="radio" name="payment_condition" value="credit" class="mr-2"> Crédito</label>
-                        </div>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">Vuelto</label>
-                        <input type="text" id="change-due" readonly class="w-full p-2 mt-1 font-bold bg-gray-100 border rounded">
+    </div>
+        {{-- Modal para Nuevo Cliente --}}
+    <div id="client-modal" class="fixed inset-0 z-50 flex items-center justify-center hidden bg-black bg-opacity-60 transition-opacity">
+        <div class="w-full max-w-md p-6 mx-4 bg-white rounded-lg shadow-xl dark:bg-gray-300">
+            <div class="flex items-center justify-between pb-3 border-b dark:border-gray-700">
+                <h2 class="text-2xl font-bold text-gray-800 dark:text-black">Crear Nuevo Cliente</h2>
+                <button id="cancel-client-btn-icon" class="text-gray-400 hover:text-gray-800 dark:hover:text-gray-300">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <form id="new-client-form" class="mt-6 space-y-4">
+                <div>
+                    <label for="new-client-name" class="block mb-2 text-sm font-medium text-gray-800">Nombre del Cliente</label>
+                    <input type="text" id="new-client-name" placeholder="Ej: Juan Pérez" class="w-full px-3 py-2 text-gray-700 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div>
+                    <label for="new-client-document" class="block mb-2 text-sm font-medium text-gray-800">Documento (NIT/Cédula)</label>
+                    <input type="text" id="new-client-document" placeholder="Ej: 123456789" class="w-full px-3 py-2 text-gray-700 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div>
+                    <label for="new-client-zone" class="block mb-2 text-sm font-medium text-gray-800">Zona</label>
+                    <select id="new-client-zone" class="w-full px-3 py-2 text-gray-700 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <option value="">Sin Zona</option>
+                        @foreach($zones as $zone)
+                            <option value="{{ $zone->id }}">{{ $zone->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div>
+                    <label for="new-client-credit-limit" class="block mb-2 text-sm font-medium text-gray-800">Límite de Crédito</label>
+                    <input type="number" id="new-client-credit-limit" value="0" class="w-full px-3 py-2 text-gray-700 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div class="flex justify-end pt-4 space-x-4">
+                    <button type="button" id="cancel-client-btn" class="px-4 py-2 font-bold text-gray-800 bg-gray-200 rounded-lg hover:bg-gray-300">Cancelar</button>
+                    <button type="submit" class="px-4 py-2 font-bold text-white rounded-lg hover:opacity-90" style="background-color: #635bff;">Guardar Cliente</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <!--- Modal de Confirmación de Venta -->
+    <div id="checkout-modal" class="fixed inset-0 z-50 flex items-center justify-center hidden bg-gray-800 bg-opacity-50">
+        <div class="w-1/3 p-6 bg-white rounded-lg shadow-lg">
+            <h2 class="mb-4 text-2xl font-bold">Finalizar Venta</h2>
+            <div class="space-y-4"><div>
+                <label class="block text-sm font-medium text-gray-700">Total a Pagar</label>
+                <input type="text" id="checkout-total" readonly class="w-full p-2 mt-1 text-2xl font-bold bg-gray-100 border rounded"></div>
+                <div>
+                    <label for="received-amount" class="block text-sm font-medium text-gray-700">Dinero Recibido</label>
+                    <input type="number" id="received-amount" class="w-full p-2 mt-1 border rounded">
+                </div>
+                {{-- CAMBIO: Se añade el área de condicion de pago --}}
+                <div id="payment-condition-area" class="hidden pt-4 border-t">
+                    <label class="block mb-2 text-sm font-medium">Condición de Pago</label>
+                    <div class="flex gap-4">
+                        <label class="flex items-center"><input type="radio" name="payment_condition" value="cash" checked class="mr-2"> Contado</label>
+                        <label class="flex items-center"><input type="radio" name="payment_condition" value="credit" class="mr-2"> Crédito</label>
                     </div>
                 </div>
-                <div class="flex justify-end mt-6">
-                    <button type="button" id="cancel-checkout-btn" class="px-4 py-2 mr-2 bg-gray-300 rounded">Cancelar</button>
-                    <button type="button" id="confirm-sale-btn" class="px-4 py-2 text-white bg-green-600 rounded">Confirmar Venta</button>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Vuelto</label>
+                    <input type="text" id="change-due" readonly class="w-full p-2 mt-1 font-bold bg-gray-100 border rounded">
                 </div>
             </div>
+            <div class="flex justify-end mt-6">
+                <button type="button" id="cancel-checkout-btn" class="px-4 py-2 mr-2 bg-gray-300 rounded">Cancelar</button>
+                <button type="button" id="confirm-sale-btn" class="px-4 py-2 text-white bg-green-600 rounded">Confirmar Venta</button>
+            </div>
         </div>
-    </main>
+    </div>
+</main> -->
 
     
 @endsection

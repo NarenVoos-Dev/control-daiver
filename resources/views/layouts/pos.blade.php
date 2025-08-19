@@ -11,11 +11,11 @@
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <style>
         /* Estilo para el ítem activo del sidebar */
-        .sidebar-link.active {
-            background-color: #eef2ff; /* Color de fondo para el item activo */
-            color: #4f46e5; /* Color de texto para el item activo */
-            font-weight: bold;
-        }
+        .sidebar-link { @apply text-slate-400 hover:text-white hover:bg-slate-700/50 transition-all duration-200 relative; }
+        .sidebar-link.active { @apply text-white bg-blue-600/20; }
+        .sidebar-link.active .sidebar-icon { @apply text-blue-400; }
+        .sidebar-link.active .active-indicator { opacity: 1; }
+        .group:hover .sidebar-link::after { display: none; }
 
          /* Estilos para la calculadora */
         .calculator-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem; }

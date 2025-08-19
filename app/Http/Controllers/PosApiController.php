@@ -129,6 +129,7 @@ class PosApiController extends Controller
                     'is_cash' => $isCash,
                     'status' => $isCash ? 'Pagada' : 'Pendiente',
                     'total' => $total,
+                    'pending_amount' =>$total,
                     'notes' => $request->input('notes')
                 ]);
 
