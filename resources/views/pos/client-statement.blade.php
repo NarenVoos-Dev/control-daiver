@@ -19,6 +19,22 @@
     </div>
     
     <div class="p-8">
+        <div class="mb-6 flex flex-col md:flex-row justify-between items-center">
+            <form action="{{ route('pos.accounts.client.statement', $client) }}" method="GET" class="flex items-center space-x-2 w-full md:w-auto mb-4 md:mb-0">
+                <div class="relative flex-grow">
+                    {{-- CAMBIO: Se usa el helper request() --}}
+                    <input type="text" name="search" value="{{ request('search') }}" placeholder="Buscar por N° de factura..." class="w-full md:w-72 px-3 py-2 pl-9 text-sm border border-gray-300 rounded-lg">
+                    <svg class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                </div>
+                <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">Buscar</button>
+            </form>
+            <button onclick="openPaymentModal({{ $client->id }})" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center space-x-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+                <span>Abono Masivo</span>
+            </button>
+        </div>
         <!-- Stats Cards -->
         <div class="mb-6 grid grid-cols-1 md:grid-cols-3 gap-6">
             <div class="bg-blue-50 p-6 rounded-lg">
@@ -54,23 +70,6 @@
                     </div>
                 </div>
             </div>
-        </div>
-
-        <div class="mb-6 flex flex-col md:flex-row justify-between items-center">
-            <form action="{{ route('pos.accounts.client.statement', $client) }}" method="GET" class="flex items-center space-x-2 w-full md:w-auto mb-4 md:mb-0">
-                <div class="relative flex-grow">
-                    {{-- CAMBIO: Se usa el helper request() --}}
-                    <input type="text" name="search" value="{{ request('search') }}" placeholder="Buscar por N° de factura..." class="w-full md:w-72 px-3 py-2 pl-9 text-sm border border-gray-300 rounded-lg">
-                    <svg class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-                </div>
-                <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">Buscar</button>
-            </form>
-            <button onclick="openPaymentModal({{ $client->id }})" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center space-x-2">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-                </svg>
-                <span>Abono Masivo</span>
-            </button>
         </div>
 
         <div class="overflow-x-auto">
@@ -245,7 +244,9 @@
                 if (response.success) {
                     showAlert('Éxito', response.message, 'success');
                     cerrarModalAbono();
-                    setTimeout(() => location.reload(), 2000); // Recargar para ver los cambios
+                    setTimeout(() => {
+                        window.location.href = "{{ route('pos.accounts.receivable') }}";
+                    }, 2000);
                 }
             },
             error: function(xhr) {
