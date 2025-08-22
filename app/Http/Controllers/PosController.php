@@ -76,4 +76,55 @@ class PosController extends Controller
         // CAMBIO: Ya no es necesario pasar la variable $request.
         return view('pos.sales-list', compact('sales', 'stats'));
     }
+    //Cuentas X Cobrar
+     public function accountsReceivable(Request $request)
+    {
+        $user = auth()->user();
+        $query = Client::where('business_id', $user->business_id)
+                       ->whereHas('sales', fn($q) => $q->where('status', 'Pendiente'));
+
+        // Aplicar filtro de búsqueda si existe
+        if ($request->filled('search')) {
+            $search = $request->input('search');
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('document', 'like', "%{$search}%");
+            });
+        }
+
+        $clientsWithDebt = $query->withSum(['sales' => fn($q) => $q->where('status', 'Pendiente')], 'pending_amount')
+                                 ->paginate(10) // Paginamos los resultados
+                                 ->withQueryString();
+        
+        $totalReceivable = Sale::where('business_id', $user->business_id)->where('status', 'Pendiente')->sum('pending_amount');
+
+        return view('pos.accounts-receivable', compact('clientsWithDebt', 'totalReceivable'));
+    }
+    // NUEVO MÉTODO para la página de Estado de Cuenta
+    public function clientStatement(Request $request, Client $client)
+    {
+        if ($client->business_id !== auth()->user()->business_id) {
+            abort(403);
+        }
+
+        $user = auth()->user();
+        $user->tokens()->delete();
+        $apiToken = $user->createToken('pos-token')->plainTextToken;
+
+        $pendingSalesQuery = $client->sales()
+                                   ->where('status', 'Pendiente')
+                                   ->orderBy('date', 'asc');
+
+        $allPendingSales = $pendingSalesQuery->clone()->get();
+        $pendingSales = $pendingSalesQuery->paginate(10)->withQueryString();
+        
+        $stats = [
+            'total_invoices' => $allPendingSales->count(),
+            'total_debt' => $allPendingSales->sum('pending_amount'),
+            // CAMBIO: Se redondea el promedio de días
+            'average_days' => round($allPendingSales->avg(fn($sale) => Carbon::parse($sale->date)->diffInDays(now()))),
+        ];
+        
+        return view('pos.client-statement', compact('client', 'pendingSales', 'stats', 'apiToken'));
+    }
 }

@@ -30,4 +30,7 @@ Route::middleware([
 Route::middleware(['auth', CheckPosAccess::class])->prefix('pos')->name('pos.')->group(function () {
     Route::get('/', [PosController::class, 'index'])->name('index');
     Route::get('/sales', [PosController::class, 'salesList'])->name('sales.list');
+    Route::get('/accounts-receivable', [PosController::class, 'accountsReceivable'])->name('accounts.receivable');
+    Route::get('/accounts-receivable/{client}', [PosController::class, 'clientStatement'])->name('accounts.client.statement');
+
 });

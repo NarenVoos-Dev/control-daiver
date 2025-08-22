@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 use Illuminate\Http\Request;
-use App\Models\{Product, Sale, StockMovement, UnitOfMeasure, Client, Category};
+use App\Models\{Product, Sale, StockMovement, UnitOfMeasure, Client, Category, Payment};
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
@@ -149,5 +149,129 @@ class PosApiController extends Controller
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
+
+    //Cuentas X Cobrar
+    public function storePayment(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'client_id' => 'required|exists:clients,id',
+            'amount' => 'required|numeric|min:0.01',
+            'sale_id' => 'nullable|exists:sales,id', // El sale_id es opcional
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $data = $validator->validated();
+        $data['business_id'] = auth()->user()->business_id;
+        $data['payment_date'] = now();
+
+        try {
+            if (!empty($data['sale_id'])) {
+                // Lógica para abono a una factura específica
+                $message = $this->applyPaymentToSingleSale($data);
+            } else {
+                // Lógica para abono masivo a las más antiguas
+                $message = $this->applyPaymentToOldestSales($data);
+            }
+            return response()->json(['success' => true, 'message' => $message]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    private function applyPaymentToSingleSale(array $data): string
+    {
+        return DB::transaction(function () use ($data) {
+            $sale = Sale::findOrFail($data['sale_id']);
+            $paymentAmount = floatval($data['amount']);
+            $saleDebt = $sale->pending_amount;
+
+            $amountToApply = min($paymentAmount, $saleDebt);
+            
+            Payment::create([
+                'business_id' => $data['business_id'], 'client_id' => $data['client_id'],
+                'sale_id' => $sale->id, 'amount' => $amountToApply,
+                'payment_date' => $data['payment_date'],
+            ]);
+            
+            $sale->pending_amount -= $amountToApply;
+            if ($sale->pending_amount <= 0.01) {
+                $sale->pending_amount = 0;
+                $sale->status = 'Pagada';
+            }
+            $sale->save();
+
+            $surplus = $paymentAmount - $amountToApply;
+            if ($surplus > 0) {
+                return "Abono registrado. La factura ha sido saldada. Se debe devolver un vuelto de $" . number_format($surplus, 2) . " al cliente.";
+            }
+            return "Abono de $" . number_format($amountToApply, 2) . " registrado a la factura #{$sale->id}.";
+        });
+    }
+
+    private function applyPaymentToOldestSales(array $data): string
+    {
+        return DB::transaction(function () use ($data) {
+            $client = Client::findOrFail($data['client_id']);
+            $paymentAmount = floatval($data['amount']);
+            $remainingPayment = $paymentAmount;
+            
+            $pendingSales = $client->sales()->where('status', 'Pendiente')->orderBy('date', 'asc')->get();
+
+            if ($pendingSales->isEmpty()) {
+                throw new \Exception('Este cliente no tiene deudas pendientes.');
+            }
+
+            foreach ($pendingSales as $sale) {
+                if ($remainingPayment <= 0) break;
+                $amountToApply = min($remainingPayment, $sale->pending_amount);
+                
+                Payment::create([
+                    'business_id' => $data['business_id'], 'client_id' => $client->id,
+                    'sale_id' => $sale->id, 'amount' => $amountToApply,
+                    'payment_date' => $data['payment_date'],
+                ]);
+                
+                $sale->pending_amount -= $amountToApply;
+                if ($sale->pending_amount <= 0.01) { $sale->pending_amount = 0; $sale->status = 'Pagada'; }
+                $sale->save();
+                $remainingPayment -= $amountToApply;
+            }
+
+            $newDebt = $client->getCurrentDebt();
+            if ($remainingPayment > 0) {
+                return "Pago aplicado. El cliente ahora tiene un saldo a favor de $" . number_format($remainingPayment, 2);
+            } elseif ($newDebt > 0) {
+                return "Abono aplicado. El cliente aún tiene una deuda de $" . number_format($newDebt, 2);
+            }
+            return '¡Deuda saldada! Todas las facturas del cliente han sido pagadas.';
+        });
+    }
+
+    // NUEVO MÉTODO para la búsqueda asíncrona de facturas
+    public function searchClientSales(Request $request, Client $client)
+    {
+        if ($client->business_id !== auth()->user()->business_id) {
+            abort(403);
+        }
+
+        $query = $client->sales()->where('status', 'Pendiente')->orderBy('date', 'asc');
+
+        if ($request->filled('search')) {
+            $query->where('id', 'like', '%' . $request->input('search') . '%');
+        }
+
+        $pendingSales = $query->paginate(10);
+
+        // Devolvemos la vista parcial de la tabla y la paginación
+        return response()->json([
+            'table_html' => view('pos.partials.sales-table-rows', ['pendingSales' => $pendingSales])->render(),
+            'pagination_html' => $pendingSales->links()->toHtml(),
+        ]);
+    }
+
+    
     
 }
