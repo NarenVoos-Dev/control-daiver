@@ -78,8 +78,8 @@
                     <tr class="border-b-2 border-gray-200">
                         <th class="text-left py-3 px-4 font-semibold text-gray-600">Factura</th>
                         <th class="text-left py-3 px-4 font-semibold text-gray-600">Fecha</th>
-                        <th class="text-right py-3 px-4 font-semibold text-gray-600">Valor</th>
-                        <th class="text-right py-3 px-4 font-semibold text-gray-600">Saldo</th>
+                        <th class="text-center py-3 px-4 font-semibold text-gray-600">Valor factura</th>
+                        <th class="text-center py-3 px-4 font-semibold text-gray-600">Saldo pendiente</th>
                         <th class="text-center py-3 px-4 font-semibold text-gray-600">Días</th>
                         <th class="text-center py-3 px-4 font-semibold text-gray-600">Acciones</th>
                     </tr>
