@@ -15,6 +15,9 @@ use Illuminate\Database\Eloquent\Builder;
 use Filament\Forms\Get;
 use Filament\Forms\Set;
 use Illuminate\Support\Number;
+use App\Filament\Resources\EgressResource;
+use Filament\Tables\Columns\BadgeColumn;
+use Filament\Tables\Actions\Action; 
 
 class PurchaseResource extends Resource
 {
@@ -27,81 +30,6 @@ class PurchaseResource extends Resource
     
     protected static ?string $modelLabel = 'Compra';
     protected static ?string $pluralModelLabel = 'Compras';
-
-   /* public static function form(Form $form): Form
-    {
-        return $form
-            ->schema([
-                Forms\Components\Hidden::make('business_id')
-                    ->default(auth()->user()->business_id),
-
-                Forms\Components\Wizard::make([
-                    Forms\Components\Wizard\Step::make('Información General')
-                        ->schema([
-                            Forms\Components\Select::make('supplier_id')
-                                ->relationship('supplier', 'name')
-                                ->searchable()
-                                ->preload()
-                                ->required()
-                                ->label('Proveedor'),
-                            Forms\Components\DatePicker::make('date')
-                                ->label('Fecha de la Compra')
-                                ->required()
-                                ->default(now()),
-                        ]),
-                    Forms\Components\Wizard\Step::make('Items de la Compra')
-                        ->schema([
-                            Forms\Components\Repeater::make('items')
-                               //->relationship() 
-                                ->schema([
-                                    Forms\Components\Select::make('product_id')
-                                        ->label('Producto')
-                                        ->options(Product::query()->pluck('name', 'id'))
-                                        ->required()
-                                        ->searchable()
-                                        ->live()
-                                        ->afterStateUpdated(function (Get $get, Set $set) {
-                                            $product = Product::find($get('product_id'));
-                                            if ($product) {
-                                                $set('price', $product->cost ?? 0);
-                                            }
-                                        }),
-                                    Forms\Components\TextInput::make('quantity')
-                                        ->label('Cantidad Comprada')
-                                        ->required()
-                                        ->numeric()
-                                        ->live(onBlur: true),
-                                    Forms\Components\TextInput::make('price')
-                                        ->label('Costo por Unidad')
-                                        ->required()
-                                        ->numeric()
-                                        ->live(onBlur: true),
-                                    
-                                    // --- CÓDIGO CORREGIDO AQUÍ ---
-                                    Forms\Components\Select::make('unit_of_measure_id')
-                                        ->options(UnitOfMeasure::query()->pluck('name', 'id'))
-                                        ->label('Medida de Compra')
-                                        ->searchable()
-                                        ->preload()
-                                        ->required(),
-                                ])
-                                ->columns(4)
-                                ->live()
-                                ->afterStateUpdated(function (Get $get, Set $set) {
-                                    self::updateTotals($get, $set);
-                                }),
-                        ]),
-                    Forms\Components\Wizard\Step::make('Totales')
-                        ->schema([
-                            Forms\Components\TextInput::make('total')
-                                ->label('Total de la Compra')
-                                ->readOnly()
-                                ->numeric()
-                                ->prefix('$'),
-                        ])
-                ])->columnSpanFull()
-            ]);
-    }*/
     public static function form(Form $form): Form
 {
     return $form
@@ -185,6 +113,13 @@ class PurchaseResource extends Resource
                 Tables\Columns\TextColumn::make('total')
                     ->money('cop')
                     ->sortable(),
+                BadgeColumn::make('status')
+                    ->label('Estado de Pago')
+                    ->colors([
+                        'warning' => 'Pendiente',
+                        'success' => 'Pagada',
+                    ]),
+
                 Tables\Columns\TextColumn::make('date')
                     ->date('d/m/Y')
                     ->label('Fecha')
@@ -200,10 +135,19 @@ class PurchaseResource extends Resource
             ->actions([
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
+                Action::make('registrarPago')
+                    ->label('Registrar Pago')
+                    ->icon('heroicon-o-currency-dollar')
+                    ->color('success')
+                    // La acción solo es visible si la compra está pendiente
+                    ->visible(fn (Purchase $record): bool => $record->status === 'Pendiente')
+                    // Redirigimos al formulario de creación de EgressResource, pasando el ID de la compra
+                    ->url(fn (Purchase $record): string => EgressResource::getUrl('create', ['purchase_id' => $record->id])),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make(),
+
                 ]),
             ]);
     }

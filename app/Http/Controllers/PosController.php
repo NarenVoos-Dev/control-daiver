@@ -8,6 +8,7 @@ use App\Models\UnitOfMeasure;
 use App\Models\Sale;
 use App\Models\Zone;
 use App\Models\Product;
+use App\Models\{CashSession, CashSessionTransaction};
 use Carbon\Carbon;
 use Illuminate\Http\Request; 
 
@@ -126,5 +127,85 @@ class PosController extends Controller
         ];
         
         return view('pos.client-statement', compact('client', 'pendingSales', 'stats', 'apiToken'));
+    }
+    // NUEVO: Muestra el formulario para abrir la caja
+    public function showOpenCashRegisterForm()
+    {
+        return view('pos.open-cash-register');
+    }
+
+    // NUEVO: Procesa la apertura de la caja
+    public function openCashRegister(Request $request)
+    {
+        $request->validate([
+            'opening_balance' => 'required|numeric|min:0',
+        ]);
+
+        $user = auth()->user();
+
+        // Se crea la sesión de caja
+        $session = CashSession::create([
+            'business_id' => $user->business_id,
+            'user_id_opened' => $user->id,
+            'opening_balance' => $request->opening_balance,
+            'status' => 'Abierta',
+            'opened_at' => now(),
+        ]);
+
+        // Se registra la primera transacción (la base inicial)
+        $session->transactions()->create([
+            'type' => 'entrada',
+            'amount' => $request->opening_balance,
+            'description' => 'Base inicial de caja',
+        ]);
+
+        return redirect()->route('pos.index');
+    }
+    // NUEVO: Muestra el formulario para cerrar la caja con el resumen
+    public function showCloseCashRegisterForm(Request $request)
+    {
+        $activeSession = $request->get('active_session');
+        if (!$activeSession) {
+            // Si por alguna razón llega aquí sin sesión, lo mandamos a abrir una
+            return redirect()->route('pos.open_cash_register.form');
+        }
+
+        // Calcular el total esperado en caja
+        $entradas = $activeSession->transactions()->where('type', 'entrada')->sum('amount');
+        $salidas = $activeSession->transactions()->where('type', 'salida')->sum('amount');
+        $calculatedBalance = $entradas - $salidas;
+
+        return view('pos.close-cash-register', compact('activeSession', 'calculatedBalance'));
+    }
+
+    // NUEVO: Procesa el cierre de la caja
+    public function closeCashRegister(Request $request)
+    {
+        $request->validate([
+            'closing_balance' => 'required|numeric|min:0',
+            'notes' => 'nullable|string',
+        ]);
+
+        $activeSession = CashSession::where('business_id', auth()->user()->business_id)
+                                    ->where('status', 'Abierta')
+                                    ->firstOrFail();
+
+        $entradas = $activeSession->transactions()->where('type', 'entrada')->sum('amount');
+        $salidas = $activeSession->transactions()->where('type', 'salida')->sum('amount');
+        $calculatedBalance = $entradas - $salidas;
+        $closingBalance = $request->closing_balance;
+        $difference = $closingBalance - $calculatedBalance;
+
+        $activeSession->update([
+            'closing_balance' => $closingBalance,
+            'calculated_balance' => $calculatedBalance,
+            'difference' => $difference,
+            'notes' => $request->notes,
+            'status' => 'Cerrada',
+            'user_id_closed' => auth()->id(),
+            'closed_at' => now(),
+        ]);
+
+        return redirect()->route('pos.open_cash_register.form')->with('status', '¡Caja cerrada exitosamente!');
     }
 }

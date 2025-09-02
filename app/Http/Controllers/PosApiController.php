@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 use Illuminate\Http\Request;
-use App\Models\{Product, Sale, StockMovement, UnitOfMeasure, Client, Category, Payment};
+use App\Models\{Product, Sale, StockMovement, UnitOfMeasure, Client, Category, Payment, CashSessionTransaction, CashSession};
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
@@ -12,7 +12,7 @@ class PosApiController extends Controller
 {
     public function searchProducts(Request $request)
     {
-        $query = Product::query()->where('business_id', auth()->user()->business_id);
+        $query = Product::query()->where('business_id', auth()->user()->business_id)->with('unitOfMeasure');;
         if ($request->filled('category_id')) {
             if ($request->input('category_id') === 'uncategorized') {
                 $query->whereNull('category_id');
@@ -88,6 +88,13 @@ class PosApiController extends Controller
         
         try {
             $sale = DB::transaction(function () use ($request) {
+                $businessId = auth()->user()->business_id;
+                $activeSession = CashSession::where('business_id', $businessId)->where('status', 'Abierta')->first();
+                
+                if (!$activeSession && $request->input('is_cash')) {
+                    throw new \Exception('No hay una caja activa para registrar una venta de contado.');
+                }
+
                 $cart = $request->input('cart');
                 $subtotal = 0; $tax = 0;
                 
@@ -130,8 +137,21 @@ class PosApiController extends Controller
                     'status' => $isCash ? 'Pagada' : 'Pendiente',
                     'total' => $total,
                     'pending_amount' =>$total,
-                    'notes' => $request->input('notes')
+                    'notes' => $request->input('notes'),
+                    'cash_session_id' => $request->input('is_cash') ? $activeSession->id : null,
+
                 ]);
+
+                if ($isCash && $activeSession) {
+                    CashSessionTransaction::create([
+                        'cash_session_id' => $activeSession->id,
+                        'amount' => $total,
+                        'type' => 'entrada', // Es una entrada de dinero
+                        'description' => 'Ingreso por Venta #' . $sale->id,
+                        'source_type' => get_class($sale), // Enlaza a la venta (polimórfico)
+                        'source_id' => $sale->id,
+                    ]);
+                }
 
                 foreach ($cart as $item) {
                     $quantityToDeduct = (float)$item['quantity'] * (float)UnitOfMeasure::find($item['unit_of_measure_id'])->conversion_factor;
@@ -184,18 +204,33 @@ class PosApiController extends Controller
     private function applyPaymentToSingleSale(array $data): string
     {
         return DB::transaction(function () use ($data) {
+            $activeSession = CashSession::where('business_id', $data['business_id'])
+                                    ->where('status', 'Abierta')
+                                    ->first();
+            if (!$activeSession) {
+                throw new \Exception('No hay una sesión de caja activa para registrar el abono.');
+            }    
+
             $sale = Sale::findOrFail($data['sale_id']);
             $paymentAmount = floatval($data['amount']);
             $saleDebt = $sale->pending_amount;
 
             $amountToApply = min($paymentAmount, $saleDebt);
             
-            Payment::create([
-                'business_id' => $data['business_id'], 'client_id' => $data['client_id'],
-                'sale_id' => $sale->id, 'amount' => $amountToApply,
-                'payment_date' => $data['payment_date'],
+            $payment=   Payment::create([
+                            'business_id' => $data['business_id'], 'client_id' => $data['client_id'],
+                            'sale_id' => $sale->id, 'amount' => $amountToApply,
+                            'payment_date' => $data['payment_date'],
+                        ]);
+            CashSessionTransaction::create([
+                'cash_session_id' => $activeSession->id,
+                'amount' => $amountToApply,
+                'type' => 'entrada',
+                'description' => 'Abono a Venta #' . $sale->id . ' | Cliente: ' . $sale->client->name,
+                'source_type' => get_class($payment), // Enlazamos al registro del pago
+                'source_id' => $payment->id,
             ]);
-            
+
             $sale->pending_amount -= $amountToApply;
             if ($sale->pending_amount <= 0.01) {
                 $sale->pending_amount = 0;
@@ -214,6 +249,13 @@ class PosApiController extends Controller
     private function applyPaymentToOldestSales(array $data): string
     {
         return DB::transaction(function () use ($data) {
+            $activeSession = CashSession::where('business_id', $data['business_id'])
+                                    ->where('status', 'Abierta')
+                                    ->first();
+            if (!$activeSession) {
+                throw new \Exception('No hay una sesión de caja activa para registrar el abono.');
+            } 
+
             $client = Client::findOrFail($data['client_id']);
             $paymentAmount = floatval($data['amount']);
             $remainingPayment = $paymentAmount;
@@ -228,10 +270,20 @@ class PosApiController extends Controller
                 if ($remainingPayment <= 0) break;
                 $amountToApply = min($remainingPayment, $sale->pending_amount);
                 
-                Payment::create([
-                    'business_id' => $data['business_id'], 'client_id' => $client->id,
-                    'sale_id' => $sale->id, 'amount' => $amountToApply,
-                    'payment_date' => $data['payment_date'],
+                $payment =Payment::create([
+                            'business_id' => $data['business_id'], 'client_id' => $client->id,
+                            'sale_id' => $sale->id, 'amount' => $amountToApply,
+                            'payment_date' => $data['payment_date'],
+                        ]);
+
+                // Registramos cada abono individual como un movimiento en la caja
+                CashSessionTransaction::create([
+                    'cash_session_id' => $activeSession->id,
+                    'amount' => $amountToApply,
+                    'type' => 'entrada',
+                    'description' => 'Abono masivo a Venta #' . $sale->id . ' | Cliente: ' . $client->name,
+                    'source_type' => get_class($payment), // Enlazamos al registro del pago
+                    'source_id' => $payment->id,
                 ]);
                 
                 $sale->pending_amount -= $amountToApply;

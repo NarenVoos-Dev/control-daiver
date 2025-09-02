@@ -9,6 +9,9 @@ use Illuminate\Support\Facades\DB;
 use App\Models\Product;
 use App\Models\StockMovement;
 use App\Models\UnitOfMeasure;
+use App\Models\CashSession; 
+use App\Models\CashSessionTransaction; 
+
 
 class CreatePurchase extends CreateRecord
 {
