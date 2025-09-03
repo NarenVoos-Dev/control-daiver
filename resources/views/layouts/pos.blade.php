@@ -9,6 +9,7 @@
     <meta name="api-token" content="{{ $apiToken ?? '' }}">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
     <style>
         /* Estilo para el ítem activo del sidebar */
         .sidebar-link { @apply text-slate-400 hover:text-white hover:bg-slate-700/50 transition-all duration-200 relative; }
@@ -102,5 +103,6 @@
             });
         });
     </script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </body>
 </html>

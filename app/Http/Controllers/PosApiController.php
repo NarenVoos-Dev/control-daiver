@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 use Illuminate\Http\Request;
-use App\Models\{Product, Sale, StockMovement, UnitOfMeasure, Client, Category, Payment, CashSessionTransaction, CashSession};
+use App\Models\{Product, Sale, StockMovement, UnitOfMeasure, Client, Category, Payment, CashSessionTransaction, CashSession, Egress};
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
@@ -324,6 +324,64 @@ class PosApiController extends Controller
         ]);
     }
 
+    //EGRESOS
+
+    public function storeExpense(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'amount' => 'required|numeric|min:0.01',
+            'description' => 'required|string|max:255',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['success' => false, 'message' => $validator->errors()->first()], 422);
+        }
+
+        try {
+            $egress = DB::transaction(function () use ($request) {
+                $businessId = auth()->user()->business_id;
+
+                // 1. Buscar la sesión de caja activa
+                $activeSession = CashSession::where('business_id', $businessId)
+                                            ->where('status', 'Abierta')
+                                            ->first();
+
+                if (!$activeSession) {
+                    throw new \Exception('No hay una caja activa para registrar una salida de dinero.');
+                }
+
+                // 2. Crear el registro del Egreso
+                $egress = Egress::create([
+                    'business_id' => $businessId,
+                    'user_id' => auth()->id(),
+                    'type' => 'gasto', // O 'retiro', según necesites
+                    'description' => $request->input('description'),
+                    'amount' => $request->input('amount'),
+                    'payment_method' => 'efectivo', // Un gasto desde el POS siempre es en efectivo
+                    'pay_from_cash_session' => true,
+                    'cash_session_id' => $activeSession->id,
+                    'date' => now(),
+                ]);
+
+                // 3. Crear la Transacción de SALIDA en la caja
+                CashSessionTransaction::create([
+                    'cash_session_id' => $activeSession->id,
+                    'amount' => $egress->amount,
+                    'type' => 'salida', // <-- ¡Importante!
+                    'description' => 'Egreso: ' . $egress->description,
+                    'source_type' => get_class($egress),
+                    'source_id' => $egress->id,
+                ]);
+
+                return $egress;
+            });
+
+            return response()->json(['success' => true, 'message' => '¡Egreso registrado correctamente!']);
+
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
     
     
 }

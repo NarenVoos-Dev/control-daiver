@@ -17,7 +17,8 @@ use Filament\Forms\Set;
 use Illuminate\Support\Number;
 use App\Filament\Resources\EgressResource;
 use Filament\Tables\Columns\BadgeColumn;
-use Filament\Tables\Actions\Action; 
+use Filament\Tables\Actions\Action;
+use App\Models\Supplier;
 
 class PurchaseResource extends Resource
 {
@@ -44,7 +45,32 @@ class PurchaseResource extends Resource
                         ->searchable()
                         ->preload()
                         ->required()
-                        ->label('Proveedor'),
+                        ->label('Proveedor')
+                        ->createOptionForm([
+                            Forms\Components\Hidden::make('business_id')
+                                ->default(auth()->user()->business_id),
+                                
+                            Forms\Components\TextInput::make('name')
+                                ->label('Nombre del Proveedor')
+                                ->required()
+                                ->maxLength(255),
+                                
+                            Forms\Components\TextInput::make('document')
+                                ->label('Documento (NIT/Cédula)'),
+                                
+                            Forms\Components\TextInput::make('phone')
+                                ->label('Teléfono'),
+                                
+                            Forms\Components\TextInput::make('email')
+                                ->label('Correo Electrónico')
+                                ->email(),
+                        ])
+                        ->createOptionUsing(function (array $data): int {
+                            // Esta función crea el proveedor en la base de datos...
+                            $supplier = Supplier::create($data);
+                            // ...y devuelve el ID del nuevo registro para seleccionarlo automáticamente.
+                            return $supplier->id;
+                        }),
                     Forms\Components\DatePicker::make('date')
                         ->label('Fecha de la Compra')
                         ->required()

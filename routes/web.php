@@ -41,4 +41,6 @@ Route::middleware(['auth', CheckPosAccess::class, CheckActiveCashSession::class]
     // Nuevas rutas para el cierre
     Route::get('/close-cash-register', [PosController::class, 'showCloseCashRegisterForm'])->name('close_cash_register.form');
     Route::post('/close-cash-register', [PosController::class, 'closeCashRegister'])->name('close_cash_register.store');
+    Route::post('/pos/expense', [PosApiController::class, 'storeExpense'])->name('store.expense');
+
 });
