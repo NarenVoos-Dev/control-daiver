@@ -14,6 +14,7 @@ use Filament\Notifications\Notification;
 use App\Models\Product;
 use App\Models\StockMovement;
 use App\Models\UnitOfMeasure;
+use App\Models\Inventory;
 
 class CreateSale extends CreateRecord
 {
@@ -204,17 +205,19 @@ class CreateSale extends CreateRecord
     {
         return DB::transaction(function () use ($data) {
             Log::info('=== INICIANDO CREACIÓN DE RECORD ===');
+            $locationId = $data['location_id'];
 
-            // Validar stock ANTES de crear
-            if (isset($data['items']) && is_array($data['items'])) {
-                foreach ($data['items'] as $itemData) {
-                    $product = Product::findOrFail($itemData['product_id']);
-                    $sellingUnit = UnitOfMeasure::findOrFail($itemData['unit_of_measure_id']);
-                    $quantityToDeduct = (float)$itemData['quantity'] * (float)$sellingUnit->conversion_factor;
+             // 1. Validar stock ANTES de crear
+            foreach ($data['items'] as $itemData) {
+                $product = Product::findOrFail($itemData['product_id']);
+                $sellingUnit = UnitOfMeasure::findOrFail($itemData['unit_of_measure_id']);
+                $quantityToDeduct = (float)$itemData['quantity'] * (float)$sellingUnit->conversion_factor;
+                
+                // Buscamos el stock en la bodega correcta
+                $inventory = Inventory::where('product_id', $product->id)->where('location_id', $locationId)->first();
 
-                    if ($product->stock < $quantityToDeduct) {
-                        throw new \Exception("No hay suficiente stock para {$product->name}. Stock disponible: {$product->stock}, requerido: {$quantityToDeduct}");
-                    }
+                if (!$inventory || $inventory->stock < $quantityToDeduct) {
+                    throw new \Exception("No hay stock para {$product->name} en la bodega seleccionada.");
                 }
             }
 
@@ -232,15 +235,14 @@ class CreateSale extends CreateRecord
             // Procesar items
             if (isset($data['items']) && is_array($data['items'])) {
                 foreach ($data['items'] as $itemData) {
-                    $product = Product::findOrFail($itemData['product_id']);
                     $sellingUnit = UnitOfMeasure::findOrFail($itemData['unit_of_measure_id']);
+                    $quantityToDeduct = (float)$itemData['quantity'] * (float)$sellingUnit->conversion_factor;
 
                     $sale->items()->create($itemData);
 
-                    $quantityToDeduct = (float)$itemData['quantity'] * (float)$sellingUnit->conversion_factor;
-                    Product::where('id', $product->id)->update([
-                        'stock' => DB::raw("stock - " . $quantityToDeduct),
-                    ]);
+                    Inventory::where('product_id', $itemData['product_id'])
+                                ->where('location_id', $locationId)
+                                ->decrement('stock', $quantityToDeduct);
 
                     StockMovement::create([
                         'product_id' => $product->id,

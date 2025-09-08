@@ -9,6 +9,7 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use App\Filament\Resources\ProductResource\RelationManagers;
 
 class ProductResource extends Resource
 {
@@ -71,10 +72,10 @@ class ProductResource extends Resource
                     ->numeric()
                     ->prefix('$'),
                 
-                Forms\Components\TextInput::make('stock')
+                /*Forms\Components\TextInput::make('stock')
                     ->label('Stock Actual (en unidad base)')
                     ->numeric()
-                    ->default(0),
+                    ->default(0),*/
             ]);
     }
 
@@ -96,7 +97,8 @@ class ProductResource extends Resource
                     ->money('cop')
                     ->sortable()
                     ->label('Costo'),
-                Tables\Columns\TextColumn::make('stock')
+                Tables\Columns\TextColumn::make('total_stock')
+                    ->label('Stock Total')
                     ->numeric()
                     ->sortable(),
                 // Mostramos el nombre de la unidad de medida desde la relación
@@ -109,6 +111,7 @@ class ProductResource extends Resource
             ->actions([
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
+                Tables\Actions\ViewAction::make(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
@@ -121,11 +124,21 @@ class ProductResource extends Resource
     {
         return [
             'index' => Pages\ListProducts::route('/'),
+            'create' => Pages\CreateProduct::route('/create'),
+            'view' => Pages\ViewProduct::route('/{record}'),
+            'edit' => Pages\EditProduct::route('/{record}/edit'),
         ];
     }
     
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()->where('business_id', auth()->user()->business_id);
+    }
+
+    public static function getRelations(): array
+    {
+        return [
+            RelationManagers\InventoryRelationManager::class,
+        ];
     }
 }

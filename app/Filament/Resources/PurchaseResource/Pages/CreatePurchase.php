@@ -10,7 +10,8 @@ use App\Models\Product;
 use App\Models\StockMovement;
 use App\Models\UnitOfMeasure;
 use App\Models\CashSession; 
-use App\Models\CashSessionTransaction; 
+use App\Models\CashSessionTransaction;
+use App\Models\Inventory;
 
 
 class CreatePurchase extends CreateRecord
@@ -21,6 +22,8 @@ class CreatePurchase extends CreateRecord
     {
         
         return DB::transaction(function () use ($data) {
+
+            $locationId = $data['location_id'];
             
             $purchase = static::getModel()::create([
                 'business_id' => $data['business_id'],
@@ -51,11 +54,19 @@ class CreatePurchase extends CreateRecord
                         ? (float)$itemData['price'] / (float)$unit->conversion_factor 
                         : 0;
 
-                    // Actualización Atómica y Directa
-                    Product::where('id', $product->id)->update([
-                        'stock' => DB::raw("stock + {$quantityInBaseUnits}"),
-                        'cost' => $costPerBaseUnit,
-                    ]);
+                    Inventory::updateOrCreate(
+                        [
+                            'product_id' => $product->id,
+                            'location_id' => $locationId
+                        ],
+                        [
+                            'stock' => DB::raw("stock + {$quantityInBaseUnits}")
+                        ]
+                    );
+
+
+                   // 2. Actualizar solo el costo en la tabla 'products'
+                    $product->update(['cost' => $costPerBaseUnit]);
 
                     // Cuarto, registrar el movimiento de stock para auditoría
                     StockMovement::create([

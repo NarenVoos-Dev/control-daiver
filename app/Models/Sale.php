@@ -4,12 +4,13 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Sale extends Model
 {
     use HasFactory;
     
-    protected $fillable = ['business_id', 'client_id', 'date', 'subtotal', 'tax', 'total','is_cash', 'status', 'pending_amount'];
+    protected $fillable = ['business_id', 'client_id', 'date', 'subtotal', 'tax', 'total','is_cash', 'status', 'pending_amount','location_id'];
     
    
     protected $casts = [         
@@ -20,6 +21,10 @@ class Sale extends Model
         'total' => 'decimal:2',
     ];
 
+    public function location(): BelongsTo
+    {
+        return $this->belongsTo(Location::class);
+    }
     
     /**
      * Una venta pertenece a un negocio.

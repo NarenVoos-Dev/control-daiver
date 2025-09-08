@@ -20,7 +20,7 @@ return new class extends Migration
             $table->string('unit')->default('unidad')->comment('Ej: unidad, metro, litro, caja');
             $table->decimal('price', 10, 2)->comment('Precio de venta al público');
             $table->decimal('cost', 10, 2)->nullable()->comment('Costo de adquisición'); //Cantidad actual de producto del producto
-            $table->decimal('stock', 12, 4)->default(0);
+            //$table->decimal('stock', 12, 4)->default(0);
             $table->timestamps();
         });
     }

@@ -29,7 +29,10 @@ class StockAdjustmentResource extends Resource
         return $form
             ->schema([
                 Forms\Components\Hidden::make('business_id')->default(auth()->user()->business_id),
-                
+                Forms\Components\Select::make('location_id')
+                ->label('Bodega / Sucursal')
+                ->relationship('location', 'name')
+                ->required(),
                 Forms\Components\Select::make('product_id')
                     ->label('Producto')
                     ->options(\App\Models\Product::query()->pluck('name', 'id'))

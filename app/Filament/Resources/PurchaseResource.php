@@ -19,6 +19,7 @@ use App\Filament\Resources\EgressResource;
 use Filament\Tables\Columns\BadgeColumn;
 use Filament\Tables\Actions\Action;
 use App\Models\Supplier;
+use App\Models\Location;
 
 class PurchaseResource extends Resource
 {
@@ -40,6 +41,14 @@ class PurchaseResource extends Resource
                 ->schema([
                     Forms\Components\Hidden::make('business_id')
                         ->default(auth()->user()->business_id),
+
+                    Forms\Components\Select::make('location_id')
+                            ->label('Bodega/Sucursal de Destino')
+                            ->options(Location::query()->where('business_id', auth()->user()->business_id)->pluck('name', 'id'))
+                            ->required()
+                            ->searchable()
+                            ->helperText('Selecciona la bodega a la que ingresará esta mercancía.'),
+                            
                     Forms\Components\Select::make('supplier_id')
                         ->relationship('supplier', 'name')
                         ->searchable()

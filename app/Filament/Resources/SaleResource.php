@@ -12,6 +12,8 @@ use Filament\Forms\Get;
 use Filament\Forms\Set;
 use App\Models\Sale;
 use App\Models\Zone;
+use App\Models\Location; 
+use App\Models\Inventory; 
 use Barryvdh\DomPDF\Facade\Pdf;
 
 class SaleResource extends Resource
@@ -56,6 +58,13 @@ class SaleResource extends Resource
                                     return \App\Models\Client::create($data)->id;
                                 }),
                             Forms\Components\DatePicker::make('date')->label('Fecha de la Venta')->required()->default(now()),
+                            Forms\Components\Select::make('location_id')
+                            ->label('Vender desde Bodega / Sucursal')
+                            ->options(Location::query()->pluck('name', 'id'))
+                            ->required()
+                            ->live() // Para que el stock se actualice dinámicamente
+                            ->helperText('El stock de los productos se descontará de esta ubicación.'),
+                        
                             Forms\Components\Toggle::make('is_cash')
                                 ->label('Venta de Contado')
                                 ->default(false)
@@ -67,15 +76,24 @@ class SaleResource extends Resource
                             Forms\Components\Repeater::make('items')
                                 ->schema([
                                     Forms\Components\Select::make('product_id')->label('Producto')
-                                        ->options(\App\Models\Product::query()->pluck('name', 'id'))
-                                        ->required()->searchable()->preload()->live()
-                                        ->afterStateUpdated(function (Get $get, Set $set) {
-                                            $product = \App\Models\Product::find($get('product_id'));
-                                            if ($product) {
-                                                $set('price', $product->price ?? 0);
-                                                $set('stock_info', "Stock: {$product->stock} {$product->unitOfMeasure->abbreviation}");
+                                    ->relationship('product', 'name') // <-- Mejor usar relationship
+                                    ->required()->searchable()->preload()->live()
+                                    ->afterStateUpdated(function (Get $get, Set $set) {
+                                        $product = \App\Models\Product::find($get('product_id'));
+                                        if ($product) {
+                                            $set('price', $product->price ?? 0);
+                                            // <<< LÓGICA DE STOCK CORREGIDA >>>
+                                            $locationId = $get('../../location_id'); // Obtenemos la bodega seleccionada
+                                            if ($locationId) {
+                                                $inventory = Inventory::where('product_id', $product->id)
+                                                    ->where('location_id', $locationId)->first();
+                                                $stock = $inventory ? $inventory->stock : 0;
+                                                $set('stock_info', "Stock en esta bodega: {$stock}");
+                                            } else {
+                                                $set('stock_info', "Selecciona una bodega para ver el stock.");
                                             }
-                                        }),
+                                        }
+                                    }),
                                     Forms\Components\TextInput::make('stock_info')->label('Stock Actual')->readOnly(),
                                     Forms\Components\TextInput::make('quantity')->label('Cantidad')->required()->numeric()->live(onBlur: true),
                                     Forms\Components\Select::make('unit_of_measure_id')->label('Unidad de Venta')->options(\App\Models\UnitOfMeasure::query()->pluck('name', 'id'))->searchable()->preload()->required(),

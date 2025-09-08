@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Product extends Model
 {
@@ -17,8 +19,31 @@ class Product extends Model
         'unit_of_measure_id',
         'price',
         'cost',
-        'stock'
+        //'stock'
     ];
+    /**
+     * Un producto puede estar en muchas bodegas a través de la tabla de inventario.
+     */
+    public function locations(): BelongsToMany
+    {
+        return $this->belongsToMany(Location::class, 'inventory')
+            ->withPivot('stock')
+            ->withTimestamps();
+    }
+    /**
+     * Relación directa con la tabla de inventario para cálculos.
+     */
+    public function inventory(): HasMany
+    {
+        return $this->hasMany(Inventory::class);
+    }
+    /**
+     * ACCESOR: Calcula el stock total sumando el stock de todas las bodegas.
+     */
+    public function getTotalStockAttribute(): float
+    {
+        return $this->inventory->sum('stock');
+    }
 
     /**
      * Un producto pertenece a un negocio.
