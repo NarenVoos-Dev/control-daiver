@@ -13,7 +13,8 @@ use Filament\Forms\Set;
 use App\Models\Sale;
 use App\Models\Zone;
 use App\Models\Location; 
-use App\Models\Inventory; 
+use App\Models\Inventory;
+use App\Models\Product; 
 use Barryvdh\DomPDF\Facade\Pdf;
 
 class SaleResource extends Resource
@@ -67,28 +68,40 @@ class SaleResource extends Resource
                         
                             Forms\Components\Toggle::make('is_cash')
                                 ->label('Venta de Contado')
-                                ->default(false)
-                                ->live(),    
+                                ->default(false),
+                                //->live(),    
                         ]),
 
                     Forms\Components\Wizard\Step::make('Items de la Venta')
                         ->schema([
                             Forms\Components\Repeater::make('items')
                                 ->schema([
-                                    Forms\Components\Select::make('product_id')->label('Producto')
-                                    ->relationship('product', 'name') // <-- Mejor usar relationship
-                                    ->required()->searchable()->preload()->live()
+                                    Forms\Components\Select::make('product_id')
+                                    ->label('Producto')
+                                    ->required()
+                                    ->searchable()
+                                    ->preload()
+                                    ->live()
+                                    // Este método le dice a Filament cómo buscar productos cuando el usuario escribe
+                                    ->getSearchResultsUsing(function (string $search) {
+                                        return \App\Models\Product::where('name', 'like', "%{$search}%")
+                                            ->limit(50)
+                                            ->pluck('name', 'id');
+                                    })
+                                    // Este método le dice a Filament cómo obtener el nombre de un producto que ya está seleccionado
+                                    ->getOptionLabelUsing(function ($value): ?string {
+                                        return \App\Models\Product::find($value)?->name;
+                                    })
                                     ->afterStateUpdated(function (Get $get, Set $set) {
                                         $product = \App\Models\Product::find($get('product_id'));
                                         if ($product) {
                                             $set('price', $product->price ?? 0);
-                                            // <<< LÓGICA DE STOCK CORREGIDA >>>
-                                            $locationId = $get('../../location_id'); // Obtenemos la bodega seleccionada
+                                            $locationId = $get('../../location_id'); 
                                             if ($locationId) {
-                                                $inventory = Inventory::where('product_id', $product->id)
+                                                $inventory = \App\Models\Inventory::where('product_id', $product->id)
                                                     ->where('location_id', $locationId)->first();
                                                 $stock = $inventory ? $inventory->stock : 0;
-                                                $set('stock_info', "Stock en esta bodega: {$stock}");
+                                                $set('stock_info', "{$stock}");
                                             } else {
                                                 $set('stock_info', "Selecciona una bodega para ver el stock.");
                                             }
@@ -120,9 +133,13 @@ class SaleResource extends Resource
         return $table
         ->columns([
             Tables\Columns\TextColumn::make('id')
-            ->label('N° Venta'),
+            ->label('N° Venta')
+            ->sortable(),
             Tables\Columns\TextColumn::make('client.name')
             ->label('Cliente')
+            ->searchable(),
+            Tables\Columns\TextColumn::make('location.name')
+            ->label('Bodega/Sucursal')
             ->searchable(),
             Tables\Columns\TextColumn::make('subtotal')
             ->money('cop')->sortable(),
@@ -153,6 +170,7 @@ class SaleResource extends Resource
                     default => 'gray',
                 }),
             ])
+            ->defaultSort('id', 'desc')
             ->actions([
                 Tables\Actions\ActionGroup::make([
                     Tables\Actions\ViewAction::make(),

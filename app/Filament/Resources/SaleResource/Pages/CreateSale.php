@@ -5,256 +5,299 @@ namespace App\Filament\Resources\SaleResource\Pages;
 use App\Filament\Resources\SaleResource;
 use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Database\Eloquent\Model;
-use Filament\Actions\Action;
 use App\Models\Client;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
-use Filament\Notifications\Notification;
-
 use App\Models\Product;
 use App\Models\StockMovement;
 use App\Models\UnitOfMeasure;
 use App\Models\Inventory;
+use Filament\Notifications\Notification;
+use Filament\Actions\Action;
+use Illuminate\Support\Facades\Log;
 
 class CreateSale extends CreateRecord
 {
     protected static string $resource = SaleResource::class;
-
-    protected function getRedirectUrl(): string
+    public bool $isForcingCreation = false;
+    public array $pendingData = []; // Para guardar los datos cuando se detiene la creación
+    
+    protected function beforeCreate(): void
     {
-        return static::getResource()::getUrl('view', ['record' => $this->getRecord()]);
-    }
+        Log::info('=== beforeCreate() INICIADO ===');
+        
+        if ($this->isForcingCreation) {
+            Log::info('FORZANDO CREACIÓN - Saltando validación');
+            return;
+        }
+        
+        $data = $this->form->getState();
+        Log::info('Datos del formulario en beforeCreate:', $data);
 
-    protected function getFormActions(): array
-    {
-        return [
-            $this->getSaveFormAction(),
-            $this->getCancelFormAction(),
-        ];
-    }
+        // Guardar los datos por si necesitamos usarlos después
+        $this->pendingData = $data;
 
-    protected function getSaveFormAction(): Action
-    {
-        // Atención: NO usamos ->submit('save') para que Filament ejecute requiresConfirmation correctamente
-        return Action::make('save')
-            ->label('Guardar Venta')
-            ->keyBindings(['mod+s'])
-            ->before(function () {
-                // Antes de abrir confirmación/acción sólo hacemos logging y cálculos ligeros
-                Log::info('=== ACCIÓN SAVE INICIADA (before) ===');
-                $data = $this->form->getState();
-                Log::info('Datos del formulario (before):', $data);
+        // Si es venta de contado, no se valida el crédito y se permite la creación.
+        $isCash = filter_var($data['is_cash'] ?? false, FILTER_VALIDATE_BOOLEAN);
+        Log::info('Tipo de pago detectado:', [
+            'is_cash_raw' => $data['is_cash'] ?? 'NO_EXISTE',
+            'is_cash_processed' => $isCash
+        ]);
 
-                // Si quieres, aquí puedes recalcular total automáticamente y rellenarlo en el form:
-                if ((!isset($data['total']) || !is_numeric($data['total'])) && isset($data['items'])) {
-                    $calculated = $this->calculateSaleTotal($data);
-                    Log::info("Se recalculó total en before(): {$calculated}");
-                    // Llenar el formulario con el total recalculado (opcional)
-                    $this->form->fill(['total' => $calculated]);
-                }
-            })
-            ->requiresConfirmation(function () {
-                // Esta closure se ejecuta en el servidor para decidir si el modal de confirmación debe mostrarse.
-                Log::info('=== EVALUANDO REQUIRES_CONFIRMATION ===');
+        if ($isCash) {
+            Log::info('ES CONTADO - Permitiendo creación');
+            return;
+        }
+        
+        $client = Client::find($data['client_id'] ?? null);
+        Log::info('Cliente encontrado:', [
+            'client_id' => $data['client_id'] ?? 'NO_ID',
+            'cliente_existe' => $client ? 'SI' : 'NO',
+            'cliente_nombre' => $client->name ?? 'N/A'
+        ]);
 
-                $data = $this->form->getState();
-                Log::info('Datos en requiresConfirmation:', $data);
+        // Solo se valida si hay un cliente con un límite de crédito activo.
+        if ($client && isset($client->credit_limit) && $client->credit_limit > 0) {
+            $newSaleTotal = $this->calculateSaleTotal($data);
+            $currentDebt = method_exists($client, 'getCurrentDebt') ? $client->getCurrentDebt() : 0;
+            $totalAfterSale = $currentDebt + $newSaleTotal;
 
-                // Si es venta al contado -> NO requiere confirmación
-                $isCash = $data['is_cash'] ?? false;
-                if ($isCash) {
-                    Log::info('Venta al contado: no se requiere confirmación.');
-                    return false;
-                }
+            Log::info('Cálculos de crédito:', [
+                'limite_credito' => $client->credit_limit,
+                'deuda_actual' => $currentDebt,
+                'total_venta' => $newSaleTotal,
+                'total_despues' => $totalAfterSale,
+                'excede_limite' => $totalAfterSale > $client->credit_limit
+            ]);
 
-                // Si no hay cliente -> no requiere confirmación (o puedes cambiar la lógica)
-                $clientId = $data['client_id'] ?? null;
-                if (!$clientId) {
-                    Log::info('No hay cliente asignado: no se requiere confirmación.');
-                    return false;
-                }
-
-                $client = Client::find($clientId);
-                if (!$client) {
-                    Log::info("Cliente {$clientId} no encontrado: no se requiere confirmación.");
-                    return false;
-                }
-
-                // Si cliente no tiene límite sensible -> no requiere confirmación
-                if (!isset($client->credit_limit) || $client->credit_limit <= 0) {
-                    Log::info("Cliente {$clientId} sin límite de crédito activo: no se requiere confirmación.");
-                    return false;
-                }
-
-                // Calcular totales
-                $newSaleTotal = $this->calculateSaleTotal($data);
-                $currentDebt = method_exists($client, 'getCurrentDebt') ? $client->getCurrentDebt() : 0;
-                $totalAfterSale = $currentDebt + $newSaleTotal;
-
-                Log::info("Cliente {$clientId}: deuda actual={$currentDebt}, venta={$newSaleTotal}, totalDespues={$totalAfterSale}, limite={$client->credit_limit}");
-
-                // Requiere confirmación sólo si sobrepasa el límite
-                $exceedsLimit = $totalAfterSale > $client->credit_limit;
-                Log::info("¿Excede límite? " . ($exceedsLimit ? 'SÍ' : 'NO'));
-
-                return $exceedsLimit;
-            })
-            ->modalHeading('Límite de Crédito Excedido')
-            ->modalDescription(function () {
-                // Descripción del modal que verá el usuario
-                $data = $this->form->getState();
-                $client = Client::find($data['client_id'] ?? null);
-
-                if (!$client) {
-                    return 'No se pudo verificar el límite de crédito del cliente.';
-                }
-
-                $newSaleTotal = $this->calculateSaleTotal($data);
-                $currentDebt = method_exists($client, 'getCurrentDebt') ? $client->getCurrentDebt() : 0;
-                $totalAfterSale = $currentDebt + $newSaleTotal;
-
-                return sprintf(
-                    'El cliente tiene una deuda actual de $%s. Con esta venta de $%s, su deuda total sería de $%s, lo que excede su límite de crédito de $%s. ¿Desea continuar con la venta?',
+            // Si se excede el límite, se detiene la creación y se muestra una notificación con una acción.
+            if ($totalAfterSale > $client->credit_limit) {
+                Log::info('EXCEDE LÍMITE - Mostrando notificación');
+                
+                $message = sprintf(
+                    'El cliente "%s" excede su límite de crédito de $%s. Deuda actual: $%s. Con esta venta: $%s. Total sería: $%s.',
+                    $client->name,
+                    number_format($client->credit_limit, 2),
                     number_format($currentDebt, 2),
                     number_format($newSaleTotal, 2),
-                    number_format($totalAfterSale, 2),
-                    number_format($client->credit_limit, 2)
+                    number_format($totalAfterSale, 2)
                 );
-            })
-            ->modalSubmitActionLabel('Sí, continuar con la venta')
-            ->modalCancelActionLabel('Cancelar')
-            ->action(function () {
-                // Esta acción **solo** se ejecuta si:
-                // - No se requería confirmación, o
-                // - Se requirió y el usuario confirmó en el modal
-                Log::info('=== EJECUTANDO ACCIÓN FINAL (action) ===');
 
-                $data = $this->form->getState();
-                Log::info('Datos del formulario (action):', $data);
+                Notification::make()
+                    ->title('⚠️ Límite de Crédito Excedido')
+                    ->body($message)
+                    ->danger()
+                    ->persistent()
+                    ->actions([
+                        \Filament\Notifications\Actions\Action::make('forceCreate')
+                            ->label('✅ Forzar Venta a Crédito')
+                            ->color('danger')
+                            ->button()
+                            ->dispatch('forceCreateSale'),
+                        \Filament\Notifications\Actions\Action::make('cancel')
+                            ->label('❌ Cancelar')
+                            ->color('gray')
+                            ->button()
+                            ->action(function () {
+                                Log::info('=== BOTÓN CANCELAR CLICKEADO ===');
+                                $this->cancelPendingSale();
+                            })
+                    ])
+                    ->send();
 
-                try {
-                    $record = $this->handleRecordCreation($data);
-                    $this->record = $record;
-
-                    Log::info('Record creado exitosamente (action):', ['id' => $record->id]);
-
-                    Notification::make()
-                        ->title('Venta creada exitosamente')
-                        ->success()
-                        ->send();
-
-                    $this->redirect($this->getRedirectUrl());
-                } catch (\Exception $e) {
-                    Log::error('Error al crear la venta (action):', [
-                        'mensaje' => $e->getMessage(),
-                        'archivo' => $e->getFile(),
-                        'linea' => $e->getLine()
-                    ]);
-
-                    Notification::make()
-                        ->title('Error al crear la venta')
-                        ->body($e->getMessage())
-                        ->danger()
-                        ->send();
-                }
-            });
-    }
-
-    protected function calculateSaleTotal(array $data): float
-    {
-        $total = 0;
-
-        Log::info('=== CALCULANDO TOTAL DE VENTA ===');
-
-        if (isset($data['total']) && is_numeric($data['total'])) {
-            $total = (float)$data['total'];
-            Log::info("Usando total pre-calculado: {$total}");
-            return $total;
-        }
-
-        Log::info('Calculando desde items...');
-
-        if (isset($data['items']) && is_array($data['items'])) {
-            foreach ($data['items'] as $index => $item) {
-                $quantity = (float)($item['quantity'] ?? 0);
-                $price = (float)($item['price'] ?? 0);
-                $taxRate = (float)($item['tax_rate'] ?? 0);
-
-                $subtotal = $quantity * $price;
-                $tax = $subtotal * ($taxRate / 100);
-                $itemTotal = $subtotal + $tax;
-
-                Log::info("Item {$index}:", [
-                    'quantity' => $quantity,
-                    'price' => $price,
-                    'tax_rate' => $taxRate,
-                    'subtotal' => $subtotal,
-                    'tax' => $tax,
-                    'total' => $itemTotal
-                ]);
-
-                $total += $itemTotal;
+                Log::info('Notificación enviada - Deteniendo proceso');
+                // Detiene el proceso de creación normal.
+                $this->halt();
             }
         }
 
-        Log::info("Total calculado final: {$total}");
-        return $total;
+        Log::info('beforeCreate completado - Continuando con creación normal');
+    }
+
+    /**
+     * Este método se ejecuta cuando el usuario hace clic en "Forzar Venta"
+     */
+    #[On('forceCreateSale')]
+    public function forceCreate(): void
+    {
+        Log::info('=== forceCreate() INICIADO ===');
+        Log::info('Datos pendientes disponibles:', $this->pendingData);
+        
+        try {
+            // Validar que tenemos datos pendientes
+            if (empty($this->pendingData)) {
+                Log::error('ERROR: No hay datos pendientes para crear la venta');
+                Notification::make()
+                    ->title('Error')
+                    ->body('No se pueden recuperar los datos de la venta. Por favor, intenta de nuevo.')
+                    ->danger()
+                    ->send();
+                return;
+            }
+
+            // Marcar que estamos forzando la creación
+            $this->isForcingCreation = true;
+            
+            // Forzar que sea venta a crédito
+            $this->pendingData['is_cash'] = false;
+            
+            Log::info('Creando venta forzada con datos:', $this->pendingData);
+            
+            // Crear la venta directamente
+            $sale = $this->handleRecordCreation($this->pendingData);
+            
+            Log::info('Venta creada exitosamente:', ['sale_id' => $sale->id]);
+            
+            // Limpiar datos pendientes
+            $this->pendingData = [];
+            $this->isForcingCreation = false;
+            
+            // Notificación de éxito
+            Notification::make()
+                ->title('✅ Venta Creada')
+                ->body('La venta a crédito ha sido creada exitosamente a pesar de exceder el límite.')
+                ->success()
+                ->send();
+            
+            // Redirigir al registro creado
+            $this->redirect(static::getResource()::getUrl('view', ['record' => $sale]));
+            
+        } catch (\Exception $e) {
+            Log::error('ERROR al forzar creación:', [
+                'mensaje' => $e->getMessage(),
+                'archivo' => $e->getFile(),
+                'linea' => $e->getLine()
+            ]);
+            
+            Notification::make()
+                ->title('Error al Crear Venta')
+                ->body('Ocurrió un error: ' . $e->getMessage())
+                ->danger()
+                ->send();
+        }
+    }
+
+    /**
+     * Método para cancelar la venta pendiente
+     */
+    public function cancelPendingSale(): void
+    {
+        Log::info('=== cancelPendingSale() INICIADO ===');
+        
+        // Limpiar datos pendientes
+        $this->pendingData = [];
+        $this->isForcingCreation = false;
+        
+        Notification::make()
+            ->title('Venta Cancelada')
+            ->body('La venta ha sido cancelada.')
+            ->warning()
+            ->send();
+            
+        Log::info('Venta cancelada - Datos limpiados');
     }
 
     protected function handleRecordCreation(array $data): Model
     {
+        Log::info('=== handleRecordCreation() INICIADO ===');
+        Log::info('¿Es creación forzada?', ['is_forcing' => $this->isForcingCreation]);
+        
         return DB::transaction(function () use ($data) {
-            Log::info('=== INICIANDO CREACIÓN DE RECORD ===');
             $locationId = $data['location_id'];
 
-             // 1. Validar stock ANTES de crear
-            foreach ($data['items'] as $itemData) {
+            Log::info('Validando stock para ' . count($data['items']) . ' items');
+            
+            // Validación de stock
+            foreach ($data['items'] as $index => $itemData) {
                 $product = Product::findOrFail($itemData['product_id']);
                 $sellingUnit = UnitOfMeasure::findOrFail($itemData['unit_of_measure_id']);
                 $quantityToDeduct = (float)$itemData['quantity'] * (float)$sellingUnit->conversion_factor;
-                
-                // Buscamos el stock en la bodega correcta
                 $inventory = Inventory::where('product_id', $product->id)->where('location_id', $locationId)->first();
-
+                
+                Log::info("Stock item {$index} - {$product->name}:", [
+                    'requerido' => $quantityToDeduct,
+                    'disponible' => $inventory ? $inventory->stock : 0,
+                    'suficiente' => $inventory && $inventory->stock >= $quantityToDeduct
+                ]);
+                
                 if (!$inventory || $inventory->stock < $quantityToDeduct) {
                     throw new \Exception("No hay stock para {$product->name} en la bodega seleccionada.");
                 }
             }
 
-            // Estado según condición de pago
-            $isCash = $data['is_cash'];
-            $total = $data['total'];
+            // Lógica de creación de la venta
+            $isCash = filter_var($data['is_cash'] ?? false, FILTER_VALIDATE_BOOLEAN);
+            $total = $this->calculateSaleTotal($data);
+            $subtotal = $this->calculateSaleSubtotal($data);
+            
+            $data['total'] = $total;
+            $data['subtotal'] = $subtotal;
+            $data['tax'] = $total - $subtotal;
             $data['status'] = $isCash ? 'Pagada' : 'Pendiente';
             $data['pending_amount'] = $isCash ? 0 : $total;
-            Log::info("Estado asignado: {$data['status']} (is_cash: " . ($data['is_cash'] ? 'true' : 'false') . ")");
-
-            // Crear la venta
+            
+            Log::info('Datos finales de venta:', [
+                'is_cash' => $data['is_cash'],
+                'total' => $data['total'],
+                'status' => $data['status'],
+                'pending_amount' => $data['pending_amount']
+            ]);
+            
             $sale = static::getModel()::create($data);
-            Log::info('Venta creada (handleRecordCreation):', ['id' => $sale->id, 'status' => $sale->status, 'is_cash' => $sale->is_cash]);
+            Log::info('Registro de venta creado:', ['id' => $sale->id]);
 
-            // Procesar items
-            if (isset($data['items']) && is_array($data['items'])) {
-                foreach ($data['items'] as $itemData) {
-                    $sellingUnit = UnitOfMeasure::findOrFail($itemData['unit_of_measure_id']);
-                    $quantityToDeduct = (float)$itemData['quantity'] * (float)$sellingUnit->conversion_factor;
-
-                    $sale->items()->create($itemData);
-
-                    Inventory::where('product_id', $itemData['product_id'])
-                                ->where('location_id', $locationId)
-                                ->decrement('stock', $quantityToDeduct);
-
-                    StockMovement::create([
-                        'product_id' => $product->id,
-                        'type' => 'salida',
-                        'quantity' => $quantityToDeduct,
-                        'source_type' => get_class($sale),
-                        'source_id' => $sale->id,
-                    ]);
-                }
+            // Procesar items y actualizar inventario
+            foreach ($data['items'] as $index => $itemData) {
+                $sellingUnit = UnitOfMeasure::findOrFail($itemData['unit_of_measure_id']);
+                $quantityToDeduct = (float)$itemData['quantity'] * (float)$sellingUnit->conversion_factor;
+                
+                Log::info("Procesando item {$index}");
+                
+                $sale->items()->create($itemData);
+                
+                Inventory::where('product_id', $itemData['product_id'])
+                         ->where('location_id', $locationId)
+                         ->decrement('stock', $quantityToDeduct);
+                         
+                StockMovement::create([
+                    'product_id' => $itemData['product_id'],
+                    'type' => 'salida',
+                    'quantity' => $quantityToDeduct,
+                    'source_type' => get_class($sale),
+                    'source_id' => $sale->id,
+                ]);
             }
-
+            
+            Log::info('Venta completada exitosamente');
             return $sale;
         });
+    }
+    
+    protected function getRedirectUrl(): string
+    {
+        return static::getResource()::getUrl('view', ['record' => $this->getRecord()]);
+    }
+
+    protected function calculateSaleTotal(array $data): float
+    {
+        $total = 0.0;
+        if (isset($data['items']) && is_array($data['items'])) {
+            foreach ($data['items'] as $item) {
+                $subtotal = (float)($item['quantity'] ?? 0) * (float)($item['price'] ?? 0);
+                $tax = $subtotal * ((float)($item['tax_rate'] ?? 0) / 100);
+                $total += $subtotal + $tax;
+            }
+        }
+        return $total;
+    }
+
+    protected function calculateSaleSubtotal(array $data): float
+    {
+        $subtotal = 0.0;
+        if (isset($data['items']) && is_array($data['items'])) {
+            foreach ($data['items'] as $item) {
+                $subtotal += (float)($item['quantity'] ?? 0) * (float)($item['price'] ?? 0);
+            }
+        }
+        return $subtotal;
     }
 }
