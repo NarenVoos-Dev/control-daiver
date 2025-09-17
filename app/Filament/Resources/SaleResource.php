@@ -17,6 +17,10 @@ use App\Models\Inventory;
 use App\Models\Product; 
 use Barryvdh\DomPDF\Facade\Pdf;
 
+use Filament\Tables\Filters\Filter;
+use Filament\Tables\Filters\SelectFilter;
+use Filament\Forms\Components\DatePicker;
+
 class SaleResource extends Resource
 {
     // Usamos el nombre de clase completamente calificado para evitar ambigüedades.
@@ -171,6 +175,37 @@ class SaleResource extends Resource
                 }),
             ])
             ->defaultSort('id', 'desc')
+            ->filters([
+                // <<< AÑADIMOS LOS FILTROS AQUÍ >>>
+                SelectFilter::make('client_id')
+                    ->label('Cliente')
+                    ->relationship('client', 'name')
+                    ->searchable()
+                    ->preload(),
+
+                SelectFilter::make('zone')
+                    ->label('Zona')
+                    ->relationship('client.zone', 'name')
+                    ->searchable()
+                    ->preload(),
+
+                Filter::make('date')
+                    ->form([
+                        DatePicker::make('start_date')->label('Fecha Inicio'),
+                        DatePicker::make('end_date')->label('Fecha Fin'),
+                    ])
+                    ->query(function (Builder $query, array $data): Builder {
+                        return $query
+                            ->when(
+                                $data['start_date'] ?? null,
+                                fn (Builder $query, $date): Builder => $query->whereDate('date', '>=', $date),
+                            )
+                            ->when(
+                                $data['end_date'] ?? null,
+                                fn (Builder $query, $date): Builder => $query->whereDate('date', '<=', $date),
+                            );
+                    }),
+            ])
             ->actions([
                 Tables\Actions\ActionGroup::make([
                     Tables\Actions\ViewAction::make(),

@@ -20,6 +20,10 @@ use Filament\Tables\Columns\BadgeColumn;
 use Filament\Tables\Actions\Action;
 use App\Models\Supplier;
 use App\Models\Location;
+use Filament\Tables\Filters\Filter;
+use Filament\Tables\Filters\SelectFilter;
+use Filament\Forms\Components\DatePicker;
+
 
 class PurchaseResource extends Resource
 {
@@ -165,7 +169,35 @@ class PurchaseResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
-                //
+                SelectFilter::make('supplier_id')
+                ->label('Proveedor')
+                ->relationship('supplier', 'name')
+                ->searchable()
+                ->preload(),
+
+                SelectFilter::make('status')
+                    ->label('Estado de Pago')
+                    ->options([
+                        'Pendiente' => 'Pendiente',
+                        'Pagada' => 'Pagada',
+                    ]),
+
+                Filter::make('date')
+                    ->form([
+                        DatePicker::make('start_date')->label('Fecha Inicio'),
+                        DatePicker::make('end_date')->label('Fecha Fin'),
+                    ])
+                    ->query(function (Builder $query, array $data): Builder {
+                        return $query
+                            ->when(
+                                $data['start_date'] ?? null,
+                                fn (Builder $query, $date): Builder => $query->whereDate('date', '>=', $date),
+                            )
+                            ->when(
+                                $data['end_date'] ?? null,
+                                fn (Builder $query, $date): Builder => $query->whereDate('date', '<=', $date),
+                            );
+                    }),
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
