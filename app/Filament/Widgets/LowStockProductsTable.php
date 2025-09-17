@@ -6,6 +6,8 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Filament\Widgets\TableWidget as BaseWidget;
 use App\Models\Product;
+use App\Models\Inventory;
+
 use App\Filament\Resources\ProductResource;
 
 class LowStockProductsTable extends BaseWidget

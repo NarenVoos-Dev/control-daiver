@@ -14,7 +14,18 @@ class Inventory extends Model
         'product_id',
         'location_id',
         'stock',
+        'stock_minimo',
     ];
+/*
+    protected $casts = [
+        'stock' => 'decimal:2',
+        'stock_minimo' => 'decimal:2',
+    ];
+
+    public function product()
+    {
+        return $this->belongsTo(Product::class);
+    }*/
 
     public function location(): BelongsTo
     {

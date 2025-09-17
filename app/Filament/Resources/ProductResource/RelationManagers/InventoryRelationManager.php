@@ -35,7 +35,15 @@ class InventoryRelationManager extends RelationManager
                     ->required()
                     ->numeric()
                     ->label('Cantidad en Stock'),
-            ]);
+
+                    Forms\Components\TextInput::make('stock_minimo')
+                ->required()
+                ->numeric()
+                ->label('Stock Mínimo Permitido')
+                ->default(0)
+                ->helperText('Cuando el stock sea igual o menor a este valor, se generará una alerta.'),
+        ]);
+
     }
 
     public function table(Table $table): Table
@@ -48,6 +56,10 @@ class InventoryRelationManager extends RelationManager
                     
                 Tables\Columns\TextColumn::make('stock')
                     ->label('Cantidad en Stock')
+                    ->numeric()
+                    ->color(fn ($record): string => $record->stock <= $record->stock_minimo ? 'danger' : 'success'),
+                Tables\Columns\TextColumn::make('stock_minimo')
+                    ->label('Stock Mínimo')
                     ->numeric(),
             ])
             ->filters([

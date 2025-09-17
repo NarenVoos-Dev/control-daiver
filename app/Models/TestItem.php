@@ -18,3 +18,4 @@ class TestItem extends Model
         'name',
     ];
 }
+

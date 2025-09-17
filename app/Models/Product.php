@@ -1,79 +1,74 @@
 <?php
 
-namespace App\Models;
+namespace App\Filament\Widgets;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use Illuminate\Database\Eloquent\Relations\HasMany;
+use Filament\Tables;
+use Filament\Tables\Table;
+use Filament\Widgets\TableWidget as BaseWidget;
+use App\Models\Product;
+use App\Models\Inventory;
+use App\Filament\Resources\ProductResource;
 
-class Product extends Model
+class LowStockProductsTable extends BaseWidget
 {
-    use HasFactory;
+    protected static ?int $sort = 3; // Orden en el dashboard
+    protected int | string | array $columnSpan = '1';
 
-    protected $fillable = [
-        'business_id',
-        'category_id',
-        'name',
-        'sku',
-        'unit_of_measure_id',
-        'price',
-        'cost',
-        //'stock'
-    ];
-    /**
-     * Un producto puede estar en muchas bodegas a través de la tabla de inventario.
-     */
-    public function locations(): BelongsToMany
+    public function table(Table $table): Table
     {
-        return $this->belongsToMany(Location::class, 'inventory')
-            ->withPivot('stock')
-            ->withTimestamps();
-    }
-    /**
-     * Relación directa con la tabla de inventario para cálculos.
-     */
-    public function inventory(): HasMany
-    {
-        return $this->hasMany(Inventory::class);
-    }
-    /**
-     * ACCESOR: Calcula el stock total sumando el stock de todas las bodegas.
-     */
-    public function getTotalStockAttribute(): float
-    {
-        return $this->inventory->sum('stock');
-    }
+        return $table
+            ->query(
+                Inventory::with(['product', 'location'])
+                    ->whereColumn('stock', '<=', 'stock_minimo')
+                    ->where('stock_minimo', '>', 0)
+                    ->whereHas('product') // Solo inventarios que tengan producto
+                    ->whereHas('location') // Solo inventarios que tengan ubicación
+            )
+            ->heading('Productos con Bajo Stock por Bodega')
+            ->columns([
+                Tables\Columns\TextColumn::make('product.name')
+                    ->label('Producto')
+                    ->searchable()
+                    ->sortable()
+                    ->wrap(),
 
-    /**
-     * Un producto pertenece a un negocio.
-     */
-    public function business()
-    {
-        return $this->belongsTo(Business::class);
-    }
+                Tables\Columns\TextColumn::make('location.name')
+                    ->label('Bodega / Sucursal')
+                    ->badge()
+                    ->color('info')
+                    ->searchable(),
 
-    /**
-     * Un producto pertenece a una categoría.
-     */
-    public function category()
-    {
-        return $this->belongsTo(Category::class);
-    }
+                Tables\Columns\TextColumn::make('stock')
+                    ->label('Stock Actual')
+                    ->numeric()
+                    ->color('danger')
+                    ->weight('bold'),
 
-    /**
-     * Un producto tiene una unidad de medida base.
-     */
-    public function unitOfMeasure() 
-    {
-        return $this->belongsTo(UnitOfMeasure::class);
-    }
+                Tables\Columns\TextColumn::make('stock_minimo')
+                    ->label('Stock Mínimo')
+                    ->numeric()
+                    ->color('warning'),
 
-    /**
-     * Un producto tiene muchos movimientos de stock.
-     */
-    public function stockMovements()
-    {
-        return $this->hasMany(StockMovement::class);
+                // Columna adicional para mostrar qué tan crítico es el stock
+                Tables\Columns\TextColumn::make('criticality')
+                    ->label('Criticidad')
+                    ->getStateUsing(function (Inventory $record): string {
+                        $percentage = ($record->stock / $record->stock_minimo) * 100;
+                        if ($percentage == 0) return 'Sin stock';
+                        if ($percentage <= 25) return 'Crítico';
+                        if ($percentage <= 50) return 'Bajo';
+                        return 'Normal';
+                    })
+                    ->badge()
+                    ->color(fn (string $state): string => match ($state) {
+                        'Sin stock' => 'danger',
+                        'Crítico' => 'danger',
+                        'Bajo' => 'warning',
+                        default => 'success',
+                    }),
+            ])
+            ->defaultSort('stock', 'asc') // Ordenar por stock más bajo primero
+            ->paginated([10, 25, 50])
+            ->poll('30s'); // Actualizar cada 30 segundos
     }
 }

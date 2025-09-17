@@ -43,10 +43,13 @@ class EditSale extends EditRecord
                 }
             }
 
+            // Borramos los items y movimientos antiguos
             $record->items()->delete();
             \App\Models\StockMovement::where('source_type', get_class($record))->where('source_id', $record->id)->delete();
             
-            $record->update(['client_id' => $data['client_id'], 'date' => $data['date'], 'total' => $data['total']]);
+            // <<< CAMBIO CLAVE AQUÍ >>>
+            // Actualizamos la venta con TODOS los datos del formulario
+            $record->update($data);
 
             // 3. Crear los nuevos items y descontar el stock
             if (isset($data['items']) && is_array($data['items'])) {
@@ -60,7 +63,13 @@ class EditSale extends EditRecord
                             ->where('location_id', $newLocationId)
                             ->decrement('stock', $quantityToDeduct);
                     
-                    \App\Models\StockMovement::create([ /* ... tu lógica de StockMovement no cambia ... */]);
+                    \App\Models\StockMovement::create([
+                        'product_id' => $newItemData['product_id'],
+                        'type' => 'salida',
+                        'quantity' => $quantityToDeduct,
+                        'source_type' => get_class($record),
+                        'source_id' => $record->id,
+                    ]);
                 }
             }
             return $record;
