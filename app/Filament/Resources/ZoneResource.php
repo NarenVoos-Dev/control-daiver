@@ -20,8 +20,8 @@ class ZoneResource extends Resource
     protected static ?string $navigationIcon = 'heroicon-o-map-pin';
     
     // Lo agrupamos en la sección de Administración
-    protected static ?string $navigationGroup = 'Administración';
-    
+    protected static ?string $navigationGroup = 'Configuracion';
+    protected static ?int $navigationSort = 53;
     protected static ?string $modelLabel = 'Zona';
     protected static ?string $pluralModelLabel = 'Zonas';
 

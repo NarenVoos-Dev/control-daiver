@@ -18,8 +18,8 @@ class StockAdjustmentResource extends Resource
     protected static ?string $navigationIcon = 'heroicon-o-arrows-right-left';
 
     // Lo agrupamos en la sección de Inventario
-    protected static ?string $navigationGroup = 'Inventario';
-    
+    protected static ?string $navigationGroup = 'Operaciones';
+    protected static ?int $navigationSort = 15;
     protected static ?string $modelLabel = 'Ajuste de Inventario';
     protected static ?string $pluralModelLabel = 'Ajustes de Inventario';
 

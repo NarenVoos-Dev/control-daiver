@@ -18,8 +18,8 @@ class SupplierResource extends Resource
     protected static ?string $navigationIcon = 'heroicon-o-truck';
 
     // Lo agruparemos en una nueva sección de "Contactos"
-    protected static ?string $navigationGroup = 'Contactos';
-    
+    protected static ?string $navigationGroup = 'Catalogos';
+    protected static ?int $navigationSort = 33;
     protected static ?string $modelLabel = 'Proveedor';
     protected static ?string $pluralModelLabel = 'Proveedores';
 

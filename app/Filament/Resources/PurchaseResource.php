@@ -31,8 +31,8 @@ class PurchaseResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-shopping-cart';
 
-    protected static ?string $navigationGroup = 'Inventario';
-    
+    protected static ?string $navigationGroup = 'Operaciones';
+    protected static ?int $navigationSort = 13;
     
     protected static ?string $modelLabel = 'Compra';
     protected static ?string $pluralModelLabel = 'Compras';

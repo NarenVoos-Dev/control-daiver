@@ -18,6 +18,8 @@ class KardexReport extends Page implements HasForms
     protected static ?string $navigationIcon = 'heroicon-o-table-cells';
     protected static ?string $navigationGroup = 'Reportes';
     protected static ?string $navigationLabel = 'Reporte de Inventario (Kardex)';
+    protected static ?string $title = '(Kardex) - Movimiento de Inventario ';
+    protected static ?int $navigationSort = 42;
     protected static string $view = 'filament.pages.kardex-report';
 
     // Propiedades para los filtros

@@ -23,9 +23,10 @@ class PaymentResource extends Resource
     protected static ?string $model = Payment::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-banknotes';
-    protected static ?string $navigationGroup = 'Ventas';
+    protected static ?string $navigationGroup = 'Finanzas';
+    protected static ?int $navigationSort = 21;
     protected static ?string $modelLabel = 'Pago / Abono';
-    protected static ?string $pluralModelLabel = 'Pagos y Abonos';
+    protected static ?string $pluralModelLabel = 'Cuentas por cobrar';
 
     public static function form(Form $form): Form
     {

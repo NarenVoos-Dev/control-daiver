@@ -18,8 +18,8 @@ class CategoryResource extends Resource
     protected static ?string $navigationIcon = 'heroicon-o-tag';
     
     // Lo agrupamos junto a Productos
-    protected static ?string $navigationGroup = 'Inventario'; 
-    
+    protected static ?string $navigationGroup = 'Configuracion'; 
+    protected static ?int $navigationSort = 52;
     // Cambiamos el nombre para que sea más legible
     protected static ?string $modelLabel = 'Categoría';
     protected static ?string $pluralModelLabel = 'Categorías';

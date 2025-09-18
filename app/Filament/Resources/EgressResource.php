@@ -28,6 +28,8 @@ class EgressResource extends Resource
     protected static ?string $navigationIcon = 'heroicon-o-arrow-trending-down';
     protected static ?string $pluralModelLabel = 'Egresos';
     protected static ?string $modelLabel = 'Egresos';
+    protected static ?string $navigationGroup = 'Finanzas';
+    protected static ?int $navigationSort = 23;
 
     public static function form(Form $form): Form
     {

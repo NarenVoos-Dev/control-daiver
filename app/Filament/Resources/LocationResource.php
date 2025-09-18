@@ -18,7 +18,8 @@ class LocationResource extends Resource
     protected static ?string $model = Location::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-building-office-2';
-    protected static ?string $navigationGroup = 'Inventario';
+    protected static ?string $navigationGroup = 'Configuracion';
+    protected static ?int $navigationSort = 51;
     protected static ?string $modelLabel = 'Bodega / Sucursal';
     protected static ?string $pluralModelLabel = 'Bodegas / Sucursales';
 

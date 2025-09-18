@@ -17,8 +17,8 @@ class UnitOfMeasureResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-cube';
 
-    protected static ?string $navigationGroup = 'Inventario';
-    
+    protected static ?string $navigationGroup = 'Configuracion';
+    protected static ?int $navigationSort = 54;
     protected static ?string $modelLabel = 'Unidad de Medida';
     protected static ?string $pluralModelLabel = 'Unidades de Medida';
 

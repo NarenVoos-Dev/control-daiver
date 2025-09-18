@@ -22,7 +22,9 @@ class SalesReport extends Page implements HasForms
     protected static ?string $navigationIcon = 'heroicon-o-document-chart-bar';
     protected static ?string $navigationGroup = 'Reportes';
     protected static ?string $navigationLabel = 'Reporte de Ventas';
+    protected static ?string $title = 'Reporte de ventas';
     protected static string $view = 'filament.pages.sales-report';
+    protected static ?int $navigationSort = 41;
 
     public ?string $startDate = null;
     public ?string $endDate = null;
