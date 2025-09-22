@@ -8,7 +8,7 @@ use App\Models\UnitOfMeasure;
 use App\Models\Sale;
 use App\Models\Zone;
 use App\Models\Product;
-use App\Models\{CashSession, CashSessionTransaction};
+use App\Models\{CashSession, CashSessionTransaction,Location};
 use Carbon\Carbon;
 use Illuminate\Http\Request; 
 
@@ -43,8 +43,24 @@ class PosController extends Controller
 
         // 1. Obtener las ventas paginadas y filtradas
         $salesQuery = Sale::where('business_id', $businessId)
-                     ->with('client')
+                     ->with(['client', 'location'])
                      ->latest();
+        
+        if (!$user->hasRole('admin')) {
+            // Si no es admin, buscamos su caja activa para saber su sucursal
+            $activeSession = CashSession::where('user_id_opened', $user->id)
+                                        ->where('status', 'Abierta')
+                                        ->first();
+
+            if ($activeSession && $activeSession->location_id) {
+                // Filtramos las ventas para que solo muestre las de su sucursal
+                $salesQuery->where('location_id', $activeSession->location_id);
+            } else {
+                // Si no es admin y no tiene caja abierta, no debería ver ninguna venta.
+                // Esto es una medida de seguridad.
+                $salesQuery->whereRaw('1 = 0'); // Una condición que siempre es falsa
+            }
+        }
 
         // Aplicar filtros si existen en la petición
         if ($request->filled('search')) {
@@ -131,7 +147,8 @@ class PosController extends Controller
     // NUEVO: Muestra el formulario para abrir la caja
     public function showOpenCashRegisterForm()
     {
-        return view('pos.open-cash-register');
+        $locations = Location::where('business_id', auth()->user()->business_id)->get();
+        return view('pos.open-cash-register ', compact('locations'));
     }
 
     // NUEVO: Procesa la apertura de la caja
@@ -139,6 +156,7 @@ class PosController extends Controller
     {
         $request->validate([
             'opening_balance' => 'required|numeric|min:0',
+            'location_id' => 'required|exists:locations,id',
         ]);
 
         $user = auth()->user();
@@ -146,6 +164,7 @@ class PosController extends Controller
         // Se crea la sesión de caja
         $session = CashSession::create([
             'business_id' => $user->business_id,
+            'location_id' => $request->location_id,
             'user_id_opened' => $user->id,
             'opening_balance' => $request->opening_balance,
             'status' => 'Abierta',

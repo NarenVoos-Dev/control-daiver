@@ -5,6 +5,8 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\CashSessionResource\Pages;
 use App\Filament\Resources\CashSessionResource\RelationManagers;
 use App\Models\CashSession;
+use App\Models\Location;
+
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -40,6 +42,8 @@ class CashSessionResource extends Resource
                         'Abierta' => 'warning',
                         'Cerrada' => 'success',
                     }),
+                Tables\Columns\TextColumn::make('location.name')->label('Sucursal / Bodega')->badge()->searchable(),
+
                 Tables\Columns\TextColumn::make('opening_balance')->label('Monto Apertura')->money('cop'),
                 Tables\Columns\TextColumn::make('closing_balance')->label('Monto Cierre')->money('cop'),
                 Tables\Columns\TextColumn::make('difference')->label('Diferencia')->money('cop')

@@ -28,6 +28,7 @@
         .calculator-btn.eq { @apply bg-green-500 text-white hover:bg-green-600; }
         .calculator-btn.cl { @apply bg-red-500 text-white hover:bg-red-600; }
     </style>
+
 </head>
 <body class="bg-gray-300">
      {{-- Contenedor para las Alertas --}}
@@ -47,6 +48,12 @@
             </main>
         </div>
     </div>
+
+
+
+    <script src="https://unpkg.com/@popperjs/core@2"></script>
+    <script src="https://unpkg.com/tippy.js@6"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     @stack('scripts')
         {{-- CAMBIO: Script para la calculadora --}}
     <script>
@@ -103,6 +110,6 @@
             });
         });
     </script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
 </body>
 </html>

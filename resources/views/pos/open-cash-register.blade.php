@@ -76,6 +76,16 @@
                         </button>
                     </div>
                 </div>
+                <div class="form-group">
+                    <label for="location_id" class="block text-sm font-semibold text-gray-700 mb-3">Sucursal / Bodega</label>
+                    <select name="location_id" id="location_id" 
+                            class="form-control  bg-gray-100 hover:bg-blue-100 text-gray-700 hover:text-blue-700 py-3 px-4 rounded-lg col-12" required>
+                        <option value="">Seleccione una ubicación</option>
+                        @foreach($locations as $location)
+                            <option value="{{ $location->id }}">{{ $location->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
 
                 <!-- Cajero info (puedes traerlo de Auth::user()) -->
                 <div class="bg-blue-50 rounded-xl p-4">

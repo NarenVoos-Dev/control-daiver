@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 use Illuminate\Http\Request;
-use App\Models\{Product, Sale, StockMovement, UnitOfMeasure, Client, Category, Payment, CashSessionTransaction, CashSession, Egress};
+use App\Models\{Product, Sale, StockMovement, UnitOfMeasure, Client, Category, Payment, CashSessionTransaction, CashSession, Egress,Inventory};
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
@@ -12,7 +12,27 @@ class PosApiController extends Controller
 {
     public function searchProducts(Request $request)
     {
-        $query = Product::query()->where('business_id', auth()->user()->business_id)->with('unitOfMeasure');;
+
+         // 1. Identificamos la sucursal de la sesión de caja activa.
+        $activeSession = CashSession::where('business_id', auth()->user()->business_id)
+                                    ->where('status', 'Abierta')
+                                    ->first();
+
+        if (!$activeSession || !$activeSession->location_id) {
+            // Si no hay caja o sucursal, devolvemos una lista vacía o productos sin stock.
+            return response()->json([]);
+        }
+
+        $locationId = $activeSession->location_id;
+
+        $query = Product::query()
+                ->where('products.business_id', auth()->user()->business_id)
+                ->join('inventory', function ($join) use ($locationId) {
+                    $join->on('products.id', '=', 'inventory.product_id')
+                        ->where('inventory.location_id', '=', $locationId);
+                })
+                ->select('products.*', 'inventory.stock as stock_in_location');
+
         if ($request->filled('category_id')) {
             if ($request->input('category_id') === 'uncategorized') {
                 $query->whereNull('category_id');
@@ -23,7 +43,9 @@ class PosApiController extends Controller
         if ($request->filled('search')) {
             $query->where('name', 'like', '%' . $request->input('search') . '%');
         }
-        return response()->json($query->with('category', 'unitOfMeasure')->limit(50)->get());
+        
+        return response()->json($query->with('unitOfMeasure')->limit(50)->get());
+
     }
 
     public function searchClients(Request $request)
@@ -91,10 +113,10 @@ class PosApiController extends Controller
                 $businessId = auth()->user()->business_id;
                 $activeSession = CashSession::where('business_id', $businessId)->where('status', 'Abierta')->first();
                 
-                if (!$activeSession && $request->input('is_cash')) {
-                    throw new \Exception('No hay una caja activa para registrar una venta de contado.');
-                }
-
+                if (!$activeSession) { throw new \Exception('No hay una caja activa.'); }
+                if (!$activeSession->location_id) { throw new \Exception('La caja activa no está asignada a una sucursal.'); }
+                
+                $locationId = $activeSession->location_id;
                 $cart = $request->input('cart');
                 $subtotal = 0; $tax = 0;
                 
@@ -102,17 +124,20 @@ class PosApiController extends Controller
                     $product = Product::findOrFail($item['product_id']);
                     $unit = UnitOfMeasure::findOrFail($item['unit_of_measure_id']);
                     $quantityToDeduct = (float)$item['quantity'] * (float)$unit->conversion_factor;
-                    if ($product->stock < $quantityToDeduct) { throw new \Exception("No hay stock para {$product->name}."); }
-                    
+
+                    $inventory = Inventory::where('product_id', $product->id)->where('location_id', $locationId)->first();
+
+                    if (!$inventory || $inventory->stock < $quantityToDeduct) {
+                        throw new \Exception("No hay stock para {$product->name} en esta sucursal.");
+                    }                    
                     // CORRECCIÓN: El precio del item se recalcula en el backend para seguridad
-                    $item['price'] = $product->price;
                     $itemSubtotal = (float)$item['quantity'] * (float)$item['price'];
                     $subtotal += $itemSubtotal;
                     $tax += $itemSubtotal * ((float)($item['tax_rate'] ?? 0) / 100);
                 }
 
                 $total = $subtotal + $tax;
-                $isCash = $request->input('is_cash');
+                $isCash = filter_var($request->input('is_cash'), FILTER_VALIDATE_BOOLEAN);
 
                 // CORRECCIÓN: La validación de crédito se hace aquí, en el backend, como última capa de seguridad.
                 if (!$isCash) {
@@ -129,6 +154,7 @@ class PosApiController extends Controller
 
                 $sale = Sale::create([ 
                     'business_id' => auth()->user()->business_id, 
+                    'location_id' => $locationId, 
                     'client_id' => $request->input('client_id'), 
                     'date' => now(), 
                     'subtotal' => $subtotal, 
@@ -154,9 +180,12 @@ class PosApiController extends Controller
                 }
 
                 foreach ($cart as $item) {
-                    $quantityToDeduct = (float)$item['quantity'] * (float)UnitOfMeasure::find($item['unit_of_measure_id'])->conversion_factor;
+                    $unit = UnitOfMeasure::find($item['unit_of_measure_id']);
+                    $quantityToDeduct = (float)$item['quantity'] * (float)$unit->conversion_factor;
                     $sale->items()->create($item);
-                    Product::where('id', $item['product_id'])->update(['stock' => DB::raw("stock - {$quantityToDeduct}")]);
+                    Inventory::where('product_id', $item['product_id'])
+                             ->where('location_id', $locationId)
+                             ->decrement('stock', $quantityToDeduct);
                     StockMovement::create(['product_id' => $item['product_id'], 'type' => 'salida', 'quantity' => $quantityToDeduct, 'source_type' => get_class($sale), 'source_id' => $sale->id]);
                 }
                 
@@ -346,13 +375,13 @@ class PosApiController extends Controller
                                             ->where('status', 'Abierta')
                                             ->first();
 
-                if (!$activeSession) {
-                    throw new \Exception('No hay una caja activa para registrar una salida de dinero.');
-                }
+                if (!$activeSession) { throw new \Exception('No hay una caja activa.'); }
+                if (!$activeSession->location_id) { throw new \Exception('La caja activa no está asignada a una sucursal.'); }
 
                 // 2. Crear el registro del Egreso
                 $egress = Egress::create([
                     'business_id' => $businessId,
+                    'location_id' => $activeSession->location_id,
                     'user_id' => auth()->id(),
                     'type' => 'gasto', // O 'retiro', según necesites
                     'description' => $request->input('description'),

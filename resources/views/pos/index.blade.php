@@ -41,6 +41,9 @@
                 </div>
             </div>
             <div id="cart-items" class="flex-grow py-2 pr-2 space-y-2 overflow-y-auto"><p class="text-center text-gray-700">El carrito está vacío.</p></div>
+            <div class="flex-shrink-0 py-4">
+                <textarea id="sale-notes" rows="2" class="w-full p-2 border border-gray-300 rounded-md shadow-sm" placeholder="Añadir una nota..."></textarea>
+            </div>
             <div class="flex-shrink-0 pt-4 space-y-2 border-t">
                 <div class="flex justify-between"><span>Subtotal</span><span id="subtotal">$0.00</span></div>
                 <div class="flex justify-between"><span>IVA</span><span id="tax">$0.00</span></div>
@@ -224,7 +227,7 @@
         const csrfToken = $('meta[name="csrf-token"]').attr('content');
         let currentView = 'categories';
         let selectedCategoryId = null;
-
+        tippy('[data-tippy-content]'); //Toolpit de botones
         // Cierra el modal si se presiona la tecla Escape
         document.addEventListener('keydown', (event) => {
             if (event.key === 'Escape' && !expenseModal.classList.contains('hidden')) {
@@ -285,12 +288,29 @@
         $('#new-client-form').on('submit', createClient);
         $('#remove-client-btn').on('click', removeClient);
         $(document).on('click', '.client-result-item', function() { selectClient($(this).data('id'), $(this).text()); });
-        $(document).on('change', '.cart-quantity, .cart-unit, .tax-rate', function() { updateCartItem($(this).closest('.cart-item').data('id')); });
+        $(document).on('change', '.cart-quantity, .cart-unit, .tax-rate, .cart-price', function() { 
+            updateCartItem($(this).closest('.cart-item').data('id')); 
+        });
         $(document).on('click', '.remove-from-cart-btn', function() { removeFromCart($(this).closest('.cart-item').data('id')); });
         $('#checkout-btn').on('click', openCheckoutModal);
         $('#cancel-checkout-btn').on('click', () => $('#checkout-modal').addClass('hidden'));
         $('#confirm-sale-btn').on('click', saveSale);
         $('#received-amount').on('keyup', calculateChange);
+
+        //Activar input de precio 
+        $(document).on('click', '.unlock-price-btn', function() {
+            // 1. Obtenemos el ID del producto desde el botón que fue presionado
+            const productId = $(this).data('id');
+            
+            // 2. Buscamos el campo de precio correspondiente usando su ID único
+            const priceInput = $(`#price-${productId}`);
+            
+            // 3. Habilitamos el campo, le quitamos el fondo gris, lo enfocamos y seleccionamos el texto
+            priceInput.prop('disabled', false)
+                    .removeClass('bg-gray-100')
+                    .focus()
+                    .select();
+        });
 
         // --- FUNCIONES DE LÓGICA Y RENDERIZADO ---
         function ajaxRequest(url, method, data = {}) { return $.ajax({ url: url, method: method, headers: { 'Authorization': `Bearer ${apiToken}`, 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' }, data: data, }).fail(handleAjaxError); }
@@ -325,12 +345,13 @@
         function renderProducts(products) {
             let html = '<div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">';
             products.forEach(p => {
-                html += `<div class="p-2 border border-gray-400 rounded-lg cursor-pointer add-to-cart-btn" data-product='${JSON.stringify(p)}'>
+                const stock = p.stock_in_location ?? 0;
+                const stockMessage = `Stock: ${stock} - ${p.unit_of_measure.name}`;
+                const stockColor = stock <= 0 ? 'text-red-200' : 'bg-green-200';
+                html += `<div class="p-2 border border-gray-400 rounded-lg cursor-pointer add-to-cart-btn ${stockColor}" data-product='${JSON.stringify(p)}'>
                             <p class="text-sm font-semibold">${p.name}</p>
                             <p class="text-xs">$ ${parseFloat(p.price) % 1 === 0 ? parseInt(p.price) : parseFloat(p.price).toFixed(2)}</p>
-                            <p class="text-xs">
-                            Stock: ${parseFloat(p.stock) % 1 === 0 ? parseInt(p.stock) : parseFloat(p.stock).toFixed(2)} - ${p.unit_of_measure.name}
-                            </p>
+                            <p class="text-xs">${stockMessage}</p>
                         </div>`;
             });
             html += `</div>`;
@@ -414,19 +435,21 @@
         }
         
         //Añadir producto al carrito
-        function addToCart(product) { if (cart[product.id]) { cart[product.id].quantity++; } else { cart[product.id] = { product_id: product.id, name: product.name, quantity: 1, price: product.price, tax_rate: 19, unit_of_measure_id: product.unit_of_measure_id }; } renderCart(); }
+        function addToCart(product) { if (cart[product.id]) { cart[product.id].quantity++; } else { cart[product.id] = { product_id: product.id, name: product.name, quantity: 1, price: product.price, tax_rate: 0, unit_of_measure_id: product.unit_of_measure_id }; } renderCart(); }
         function removeFromCart(productId) { delete cart[productId]; renderCart(); }
     
         //Actualizar el item del carrito
         function updateCartItem(productId) { 
             // Capturar los elementos cuando son actualizados
             const itemDiv = $(`.cart-item[data-id="${productId}"]`);
-            const quantity = parseInt(itemDiv.find('.cart-quantity').val()); 
+            const quantity = parseInt(itemDiv.find('.cart-quantity').val());
+            const price = parseFloat(itemDiv.find('.cart-price').val()); 
             const unitId = parseInt(itemDiv.find('.cart-unit').val()); 
             const taxRate = parseFloat(itemDiv.find('.tax-rate').val()); 
             
             if (quantity > 0) { 
-                cart[productId].quantity = quantity; 
+                cart[productId].quantity = quantity;
+                cart[productId].price = price; // <<< LÍNEA NUEVA PARA GUARDAR EL PRECIO >>> 
                 cart[productId].unit_of_measure_id = unitId; 
                 cart[productId].tax_rate = taxRate; 
             } else { 
@@ -447,34 +470,71 @@
                 for (const id in cart) {
                     const item = cart[id];
                     
+                    
                     // --- CAMBIO CLAVE: Se calcula el precio total del item considerando la unidad ---
                     const selectedUnit = allUnits.find(u => u.id == item.unit_of_measure_id);
                     const conversionFactor = selectedUnit ? parseFloat(selectedUnit.conversion_factor) : 1;            
                     const itemPrice = parseFloat(item.price) * conversionFactor;
                 
-                    const itemSubtotal =  parseInt(item.quantity) * itemPrice;
+                    const itemSubtotal = parseFloat(item.quantity) * parseFloat(item.price);
+
                     
                     // Calcular el impuesto
                     subtotal += itemSubtotal;
-                    text_tax_rate = item.tax_rate ?? 19;
-                    tax += itemSubtotal * ((item.tax_rate) / 100);
+                    tax += itemSubtotal * ((item.tax_rate ?? 0) / 100);
 
                     let unitOptions = '';
                     allUnits.forEach(u => { unitOptions += `<option value="${u.id}" ${item.unit_of_measure_id == u.id ? 'selected' : ''}>${u.name}</option>`; });
                     // Dibujar el item en el carrito
-                    html += `<div class="grid items-center grid-cols-12 gap-2 text-sm card cart-item" data-id="${id}">
-                                <div class="col-span-3 font-medium">${item.name}</div>
-                                <div class="col-span-2"><input type="number" value="${item.quantity}" class="w-full border-gray-300 rounded-md shadow-sm cart-quantity"></div>
-                                <div class="col-span-2"><input type="number" value="${item.tax_rate}" class="w-full border-gray-300 rounded-md shadow-sm tax-rate"></div> <p>%</p>
-                                <div class="col-span-3"><select class="w-full border-gray-300 rounded-md shadow-sm cart-unit">${unitOptions}</select></div>
-                                <div class="col-span"><button class="text-xl font-bold text-red-500 remove-from-cart-btn">&times;</button></div>
-                            </div>`;
+                    html += `<div class="py-3 border-b border-gray-200 cart-item" data-id="${id}">
+                                <div class="flex items-center justify-between">
+                                    <span class="font-semibold text-gray-800">${item.name}</span>
+                                    
+                                    <div class="flex items-center space-x-3">
+                                        <button 
+                                            class="text-gray-400 transition-colors hover:text-green-600 unlock-price-btn" 
+                                            data-id="${id}" 
+                                            data-tippy-content="Cambiar precio"
+                                        >
+                                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                                <path stroke-linecap="round" s
+                                                    troke-linejoin="round" 
+                                                    d="M12 6v12m-3-6h6M12 8.25c-2.485 0-4.5 1.5-4.5 3.375s2.015 3.375 4.5 3.375 4.5-1.5 4.5-3.375S14.485 8.25 12 8.25zM12 15.75c-2.485 0-4.5-1.5-4.5-3.375S9.515 9 12 9s4.5 1.5 4.5 3.375-2.015 3.375-4.5 3.375z" />
+                                            </svg>
+                                        </button>
+                                        
+                                        <button class="text-xl font-bold text-red-500 transition-colors hover:text-red-700 remove-from-cart-btn" data-tippy-content="Eliminar item">&times;</button>
+                                    </div>
+                                </div>
+
+                                <div class="grid grid-cols-4 gap-3 mt-2">
+                                    <div>
+                                        <label for="qty-${id}" class="block text-xs font-medium text-gray-500">Cantidad</label>
+                                        <input type="number" id="qty-${id}" value="${item.quantity}" class="w-full p-1 mt-1 text-sm border-gray-300 rounded-md shadow-sm cart-quantity">
+                                    </div>
+                                    <div>
+                                        <label for="price-${id}" class="block text-xs font-medium text-gray-500">Precio</label>
+                                        <input type="number" id="price-${id}" value="${item.price}" class="w-full p-1 mt-1 text-sm bg-gray-50 border-gray-300 rounded-md shadow-sm cart-price" step="any" disabled>
+                                    </div>
+                                    <div>
+                                        <label for="tax-${id}" class="block text-xs font-medium text-gray-500">IVA(%)</label>
+                                        <input type="number" id="tax-${id}" value="${item.tax_rate}" class="w-full p-1 mt-1 text-sm border-gray-300 rounded-md shadow-sm tax-rate">
+                                    </div>
+                                    <div>
+                                        <label for="unit-${id}" class="block text-xs font-medium text-gray-500">Unidad</label>
+                                        <select id="unit-${id}" class="w-full p-1 mt-1 text-sm border-gray-300 rounded-md shadow-sm cart-unit">${unitOptions}</select>
+                                    </div>
+                                </div>
+                            </div>
+                            `;
                 }
                 $('#cart-items').html(html); 
             } 
             $('#subtotal').text(`$${subtotal.toFixed(2)}`); 
             $('#tax').text(`$${tax.toFixed(2)}`); 
             $('#total').text(`$${(subtotal + tax).toFixed(2)}`); 
+            
+            tippy('[data-tippy-content]');
         }
 
         // NUEVA FUNCIÓN: Validar límite de crédito
@@ -621,7 +681,8 @@
             const saleData = {
                 client_id: selectedClient.id,
                 cart: Object.values(cart),
-                is_cash: !isCredit // Convertir a la lógica original
+                is_cash: !isCredit, // Convertir a la lógica original
+                notes: $('#sale-notes').val()
             };
 
             ajaxRequest('/api/pos/store-sale', 'POST', saleData)
@@ -653,6 +714,7 @@
             $('#received-amount').val('');
             $('#change-due').val('');
             $('input[name="payment_condition"][value="cash"]').prop('checked', true);
+            $('#sale-notes').val('');
         }
 
         // --- INICIALIZACIÓN ---
