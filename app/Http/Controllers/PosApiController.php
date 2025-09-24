@@ -104,6 +104,8 @@ class PosApiController extends Controller
             'cart.*.tax_rate' => 'required|numeric',
             'cart.*.unit_of_measure_id' => 'required|exists:unit_of_measures,id',
             'notes' => 'nullable|string',
+            'payment_method_id' => 'required_if:is_cash,true|exists:payment_methods,id',
+            'bank_account_id' => 'nullable|exists:bank_accounts,id',
         ]);
 
         if ($validator->fails()) { return response()->json(['errors' => $validator->errors()], 422); }
@@ -165,6 +167,8 @@ class PosApiController extends Controller
                     'pending_amount' =>$total,
                     'notes' => $request->input('notes'),
                     'cash_session_id' => $request->input('is_cash') ? $activeSession->id : null,
+                    'payment_method_id' => $request->input('payment_method_id'),
+                    'bank_account_id' => $request->input('bank_account_id'),  
 
                 ]);
 

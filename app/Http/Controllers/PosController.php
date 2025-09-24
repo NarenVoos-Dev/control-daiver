@@ -8,7 +8,7 @@ use App\Models\UnitOfMeasure;
 use App\Models\Sale;
 use App\Models\Zone;
 use App\Models\Product;
-use App\Models\{CashSession, CashSessionTransaction,Location};
+use App\Models\{CashSession, CashSessionTransaction,Location, PaymentMethod, BankAccount};
 use Carbon\Carbon;
 use Illuminate\Http\Request; 
 
@@ -31,9 +31,17 @@ class PosController extends Controller
         }
         $units = UnitOfMeasure::where('business_id', $user->business_id)->get();
         $zones = Zone::where('business_id', $businessId)->get(['id', 'name']); // <-- OBTENER LAS ZONAS
+        $paymentMethods = PaymentMethod::where('business_id', $businessId)->where('is_active', true)->get();
+        $bankAccounts = BankAccount::where('business_id', $businessId)->where('is_active', true)->get();
 
-
-        return view('pos.index', compact('categories', 'units', 'apiToken', 'zones'));
+        return view('pos.index', compact(
+            'categories', 
+            'units', 
+            'apiToken', 
+            'zones',
+            'paymentMethods', 
+            'bankAccounts'
+        ));
     }
     
     public function salesList(Request $request)

@@ -109,6 +109,24 @@
                         <label class="flex items-center"><input type="radio" name="payment_condition" value="credit" class="mr-2"> Crédito</label>
                     </div>
                 </div>
+                 <div id="payment-details-area">
+                    <label for="payment-method" class="block text-sm font-medium text-gray-700">Método de Pago</label>
+                    <select id="payment-method" class="w-full p-2 mt-1 border rounded">
+                        @foreach($paymentMethods as $method)
+                            {{-- El data-type nos ayudará a mostrar/ocultar el campo de cuenta bancaria --}}
+                            <option value="{{ $method->id }}" data-type="{{ $method->type }}">{{ $method->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div id="bank-account-area" class="hidden">
+                    <label for="bank-account" class="block text-sm font-medium text-gray-700">Cuenta de Destino</label>
+                    <select id="bank-account" class="w-full p-2 mt-1 border rounded">
+                        @foreach($bankAccounts as $account)
+                            <option value="{{ $account->id }}">{{ $account->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
                 <div>
                     <label class="block text-sm font-medium text-gray-700">Vuelto</label>
                     <input type="text" id="change-due" readonly class="w-full p-2 mt-1 font-bold bg-gray-100 border rounded">
@@ -296,6 +314,35 @@
         $('#cancel-checkout-btn').on('click', () => $('#checkout-modal').addClass('hidden'));
         $('#confirm-sale-btn').on('click', saveSale);
         $('#received-amount').on('keyup', calculateChange);
+        
+        //Activar metodos de pago
+        $('#payment-method').on('change', function() {
+            const selectedType = $(this).find('option:selected').data('type');
+            
+            // Si el tipo es transferencia o tarjeta, mostramos las cuentas bancarias
+            if (selectedType === 'bank_account' || selectedType === 'card') {
+                $('#bank-account-area').removeClass('hidden');
+                // Asumimos que si no es efectivo, el monto recibido es el total
+                $('#received-amount').prop('readonly', true).val(parseFloat($('#checkout-total').val().replace('$', '')));
+                calculateChange();
+            } else { // Si es 'cash' u 'other'
+                $('#bank-account-area').addClass('hidden');
+                $('#received-amount').prop('readonly', false).focus().select();
+            }
+        });
+
+        $('input[name="payment_condition"]').on('change', function() {
+            // 'this.value' será 'cash' o 'credit'
+            if (this.value === 'credit') {
+                // Si es a crédito, OCULTA todo el contenedor de los detalles del pago
+                $('#payment-details-area').addClass('hidden');
+                $('#bank-account-area').addClass('hidden');
+
+            } else {
+                // Si es de contado, MUESTRA el contenedor
+                $('#payment-details-area').removeClass('hidden');
+            }
+        });
 
         //Activar input de precio 
         $(document).on('click', '.unlock-price-btn', function() {
@@ -647,9 +694,9 @@
 
         // MODIFICADO: saveSale con validación de límite de crédito
         async function saveSale() {
-            if (!selectedClient) { 
-                showAlert('Cliente Requerido', 'Por favor, seleccione un cliente.', 'warning'); 
-                return; 
+            if (!selectedClient || $.isEmptyObject(cart)) {
+                showAlert('Datos Faltantes', 'Debes seleccionar un cliente y tener productos en el carrito.', 'warning');
+                return;
             }
             if ($.isEmptyObject(cart)) { 
                 showAlert('Carrito Vacío', 'No hay productos en el carrito para vender.', 'warning'); 
@@ -682,17 +729,42 @@
                 client_id: selectedClient.id,
                 cart: Object.values(cart),
                 is_cash: !isCredit, // Convertir a la lógica original
-                notes: $('#sale-notes').val()
+                notes: $('#sale-notes').val(),
+                payment_method_id: null,
+                bank_account_id: null,
             };
+
+            if (!isCredit) {
+                const receivedAmount = parseFloat($('#received-amount').val()) || 0;
+                if (receivedAmount < cartTotal) {
+                    showAlert('Dinero Insuficiente', 'El dinero recibido es menor al total de la venta.', 'error');
+                    return;
+                }
+                const selectedMethod = $('#payment-method').find('option:selected');
+                saleData.payment_method_id = selectedMethod.val();
+                if (['bank_transfer', 'card'].includes(selectedMethod.data('type'))) {
+                    saleData.bank_account_id = $('#bank-account').val();
+                }
+            }
 
             ajaxRequest('/api/pos/store-sale', 'POST', saleData)
                 .done(response => {
                     if (response.success) {
-                        showAlert('Venta Exitosa', response.message);
-                        if (response.receipt_url) {
-                            window.open(response.receipt_url, '_blank');
-                        }
-                        resetPos();
+                        $('#checkout-modal').addClass('hidden');
+                        //showAlert('Venta Exitosa', response.message);
+                        Swal.fire({
+                            title: '¡Venta Registrada!',
+                            text: response.message,
+                            icon: 'success',
+                            showCancelButton: true,
+                            confirmButtonText: 'Sí, imprimir recibo',
+                            cancelButtonText: 'No, finalizar'
+                        }).then((result) => {
+                            if (result.isConfirmed && response.receipt_url) {
+                                window.open(response.receipt_url, '_blank');
+                            }
+                            resetPos(); // Reseteamos el POS
+                        });
                     }
                 });
         }
