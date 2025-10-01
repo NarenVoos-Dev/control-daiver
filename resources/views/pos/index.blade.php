@@ -315,17 +315,36 @@
         $('#confirm-sale-btn').on('click', saveSale);
         $('#received-amount').on('keyup', calculateChange);
         
-        //Activar metodos de pago
+        
+        // Agrega esto temporalmente para ver todos los tipos de pago disponibles
+        $(document).ready(function() {
+            console.log('=== PAYMENT METHODS DEBUG ===');
+            $('#payment-method option').each(function() {
+                console.log('Value:', $(this).val(), 'Type:', $(this).data('type'), 'Text:', $(this).text());
+            });
+        });
+        // Actualiza tu event listener existente con más logs:
         $('#payment-method').on('change', function() {
-            const selectedType = $(this).find('option:selected').data('type');
+            const selectedOption = $(this).find('option:selected');
+            const selectedType = selectedOption.data('type');
+            const selectedValue = selectedOption.val();
+            const selectedText = selectedOption.text();
+            
+            console.log('=== PAYMENT METHOD CHANGED ===');
+            console.log('Selected value:', selectedValue);
+            console.log('Selected type:', selectedType);
+            console.log('Selected text:', selectedText);
+            console.log('Checking for bank_account:', selectedType === 'bank_account');
+            console.log('Checking for card:', selectedType === 'card');
             
             // Si el tipo es transferencia o tarjeta, mostramos las cuentas bancarias
             if (selectedType === 'bank_account' || selectedType === 'card') {
+                console.log('Showing bank account area');
                 $('#bank-account-area').removeClass('hidden');
-                // Asumimos que si no es efectivo, el monto recibido es el total
                 $('#received-amount').prop('readonly', true).val(parseFloat($('#checkout-total').val().replace('$', '')));
                 calculateChange();
             } else { // Si es 'cash' u 'other'
+                console.log('Hiding bank account area');
                 $('#bank-account-area').addClass('hidden');
                 $('#received-amount').prop('readonly', false).focus().select();
             }
@@ -394,8 +413,8 @@
             products.forEach(p => {
                 const stock = p.stock_in_location ?? 0;
                 const stockMessage = `Stock: ${stock} - ${p.unit_of_measure.name}`;
-                const stockColor = stock <= 0 ? 'text-red-200' : 'bg-green-200';
-                html += `<div class="p-2 border border-gray-400 rounded-lg cursor-pointer add-to-cart-btn ${stockColor}" data-product='${JSON.stringify(p)}'>
+                const stockColor = stock <= 0 ? 'bg-red-300' : 'bg-green-200';
+                html += `<div class="p-2 border border-gray-400 rounded-lg cursor-pointer add-to-cart-btn ${stockColor}" data-product='${JSON.stringify(p)}' data-tippy-content="Agregar al carrito">
                             <p class="text-sm font-semibold">${p.name}</p>
                             <p class="text-xs">$ ${parseFloat(p.price) % 1 === 0 ? parseInt(p.price) : parseFloat(p.price).toFixed(2)}</p>
                             <p class="text-xs">${stockMessage}</p>
@@ -698,60 +717,68 @@
                 showAlert('Datos Faltantes', 'Debes seleccionar un cliente y tener productos en el carrito.', 'warning');
                 return;
             }
-            if ($.isEmptyObject(cart)) { 
-                showAlert('Carrito Vacío', 'No hay productos en el carrito para vender.', 'warning'); 
-                return; 
-            }
 
             const paymentCondition = $('input[name="payment_condition"]:checked').val();
             const isCredit = paymentCondition === 'credit';
             const cartTotal = parseFloat($('#total').text().replace('$', ''));
 
-            // Si es crédito, validar límite
-            if (isCredit) {
-                const canProceed = await validateCreditLimit(cartTotal);
-                if (!canProceed) {
-                    return; // No proceder con la venta
-                }
-            }
+            console.log('=== DEBUG SAVE SALE ===');
+            console.log('Payment condition:', paymentCondition);
+            console.log('Is credit:', isCredit);
 
-            // Si es contado, validar dinero recibido
-            if (!isCredit) {
-                const receivedAmount = parseFloat($('#received-amount').val()) || 0;
-                if (receivedAmount < cartTotal) {
-                    showAlert('Dinero Insuficiente', 'El dinero recibido es menor al total de la venta.', 'error');
-                    return;
-                }
-            }
-
-            // Proceder con la venta usando la estructura original
-            const saleData = {
+            let saleData = {
                 client_id: selectedClient.id,
                 cart: Object.values(cart),
-                is_cash: !isCredit, // Convertir a la lógica original
                 notes: $('#sale-notes').val(),
+                is_cash: !isCredit,
                 payment_method_id: null,
                 bank_account_id: null,
             };
 
-            if (!isCredit) {
+            if (isCredit) {
+                console.log('Procesando venta a crédito...');
+                const canProceed = await validateCreditLimit(cartTotal);
+                if (!canProceed) {
+                    return;
+                }
+            } else { 
+                console.log('Procesando venta de contado...');
                 const receivedAmount = parseFloat($('#received-amount').val()) || 0;
+                
                 if (receivedAmount < cartTotal) {
                     showAlert('Dinero Insuficiente', 'El dinero recibido es menor al total de la venta.', 'error');
                     return;
                 }
+
                 const selectedMethod = $('#payment-method').find('option:selected');
-                saleData.payment_method_id = selectedMethod.val();
-                if (['bank_transfer', 'card'].includes(selectedMethod.data('type'))) {
-                    saleData.bank_account_id = $('#bank-account').val();
+                const methodValue = selectedMethod.val();
+                const methodType = selectedMethod.data('type');
+                const bankAccountValue = $('#bank-account').val();
+
+                console.log('=== PAYMENT METHOD DEBUG ===');
+                console.log('Method value:', methodValue);
+                console.log('Method type:', methodType);
+                console.log('Bank account value:', bankAccountValue);
+                console.log('Bank account area visible:', !$('#bank-account-area').hasClass('hidden'));
+
+                saleData.payment_method_id = methodValue;
+                
+                // CAMBIO: Usar los mismos tipos que en tu event listener
+                if (methodType === 'bank_account' || methodType === 'card') {
+                    saleData.bank_account_id = bankAccountValue || null;
+                    console.log('Bank account ID assigned:', saleData.bank_account_id);
+                } else {
+                    console.log('Bank account ID NOT assigned - method type:', methodType);
                 }
             }
+
+            console.log('=== FINAL SALE DATA ===');
+            console.log('Final sale data:', JSON.stringify(saleData, null, 2));
 
             ajaxRequest('/api/pos/store-sale', 'POST', saleData)
                 .done(response => {
                     if (response.success) {
                         $('#checkout-modal').addClass('hidden');
-                        //showAlert('Venta Exitosa', response.message);
                         Swal.fire({
                             title: '¡Venta Registrada!',
                             text: response.message,
@@ -763,7 +790,7 @@
                             if (result.isConfirmed && response.receipt_url) {
                                 window.open(response.receipt_url, '_blank');
                             }
-                            resetPos(); // Reseteamos el POS
+                            resetPos();
                         });
                     }
                 });

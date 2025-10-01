@@ -8,9 +8,10 @@ use App\Models\UnitOfMeasure;
 use App\Models\Sale;
 use App\Models\Zone;
 use App\Models\Product;
-use App\Models\{CashSession, CashSessionTransaction,Location, PaymentMethod, BankAccount};
+use App\Models\{CashSession, CashSessionTransaction,Location, PaymentMethod, BankAccount , Payment};
 use Carbon\Carbon;
 use Illuminate\Http\Request; 
+use Illuminate\Support\Facades\Log;
 
 class PosController extends Controller
 {
@@ -149,8 +150,11 @@ class PosController extends Controller
             // CAMBIO: Se redondea el promedio de días
             'average_days' => round($allPendingSales->avg(fn($sale) => Carbon::parse($sale->date)->diffInDays(now()))),
         ];
+        $paymentMethods = PaymentMethod::where('business_id', $user->business_id)->where('is_active', true)->get();
+        $bankAccounts = BankAccount::where('business_id', $user->business_id)->where('is_active', true)->get();
+   
         
-        return view('pos.client-statement', compact('client', 'pendingSales', 'stats', 'apiToken'));
+        return view('pos.client-statement', compact('client', 'pendingSales', 'stats', 'apiToken','paymentMethods','bankAccounts' ));
     }
     // NUEVO: Muestra el formulario para abrir la caja
     public function showOpenCashRegisterForm()
@@ -193,16 +197,117 @@ class PosController extends Controller
     {
         $activeSession = $request->get('active_session');
         if (!$activeSession) {
-            // Si por alguna razón llega aquí sin sesión, lo mandamos a abrir una
             return redirect()->route('pos.open_cash_register.form');
         }
+
+        $activeSession->load('location');
 
         // Calcular el total esperado en caja
         $entradas = $activeSession->transactions()->where('type', 'entrada')->sum('amount');
         $salidas = $activeSession->transactions()->where('type', 'salida')->sum('amount');
         $calculatedBalance = $entradas - $salidas;
 
-        return view('pos.close-cash-register', compact('activeSession', 'calculatedBalance'));
+        // ===================================================================
+        // DESGLOSE SEPARADO: VENTAS vs ABONOS
+        // ===================================================================
+        
+        $salesByMethod = []; // Ventas de contado
+        $paymentsByMethod = []; // Abonos a crédito
+        $paymentMethodSummary = []; // Resumen total
+
+        // ===================================================================
+        // 1. VENTAS DE CONTADO (tabla sales)
+        // ===================================================================
+        $cashSales = Sale::where('cash_session_id', $activeSession->id)
+            ->where('is_cash', true)
+            ->with('paymentMethod')
+            ->get();
+
+        Log::info('=== VENTAS DE CONTADO ===');
+        Log::info('Total ventas encontradas:', ['count' => $cashSales->count()]);
+
+        foreach ($cashSales as $sale) {
+            if ($sale->paymentMethod) {
+                $methodName = $sale->paymentMethod->name;
+                
+                // Para el desglose de ventas
+                if (!isset($salesByMethod[$methodName])) {
+                    $salesByMethod[$methodName] = 0;
+                }
+                $salesByMethod[$methodName] += $sale->total;
+
+                // Para el resumen total
+                if (!isset($paymentMethodSummary[$methodName])) {
+                    $paymentMethodSummary[$methodName] = 0;
+                }
+                $paymentMethodSummary[$methodName] += $sale->total;
+
+                Log::info('Venta procesada:', [
+                    'sale_id' => $sale->id,
+                    'method' => $methodName,
+                    'amount' => $sale->total
+                ]);
+            }
+        }
+
+        // ===================================================================
+        // 2. ABONOS A CRÉDITO (tabla payments)
+        // ===================================================================
+        // Obtenemos los IDs de los payments registrados en esta sesión
+        $paymentIds = $activeSession->transactions()
+            ->where('source_type', Payment::class)
+            ->pluck('source_id');
+
+        // Obtenemos los Payments con su Sale relacionada
+        $payments = Payment::whereIn('id', $paymentIds)
+            ->with('paymentMethod')
+            ->get();
+
+        Log::info('=== ABONOS A CRÉDITO ===');
+        Log::info('Total abonos encontrados:', ['count' => $payments->count()]);
+
+        foreach ($payments as $payment) {
+            if ($payment->paymentMethod) {
+                $methodName = $payment->paymentMethod->name;
+
+                // Para el desglose de abonos
+                if (!isset($paymentsByMethod[$methodName])) {
+                    $paymentsByMethod[$methodName] = 0;
+                }
+                $paymentsByMethod[$methodName] += $payment->amount;
+
+                // Para el resumen total
+                if (!isset($paymentMethodSummary[$methodName])) {
+                    $paymentMethodSummary[$methodName] = 0;
+                }
+                $paymentMethodSummary[$methodName] += $payment->amount;
+
+                Log::info('Abono procesado:', [
+                    'payment_id' => $payment->id,
+                    'sale_id' => $payment->sale_id,
+                    'method' => $methodName,
+                    'amount' => $payment->amount
+                ]);
+            }
+        }
+
+        // Ordenar todos los arrays
+        ksort($salesByMethod);
+        ksort($paymentsByMethod);
+        ksort($paymentMethodSummary);
+
+        Log::info('=== RESUMEN FINAL ===');
+        Log::info('Ventas por método:', $salesByMethod);
+        Log::info('Abonos por método:', $paymentsByMethod);
+        Log::info('Total por método:', $paymentMethodSummary);
+
+        return view('pos.close-cash-register', compact(
+            'activeSession',
+            'calculatedBalance',
+            'paymentMethodSummary',
+            'salesByMethod',
+            'paymentsByMethod'
+        ));
     }
 
     // NUEVO: Procesa el cierre de la caja

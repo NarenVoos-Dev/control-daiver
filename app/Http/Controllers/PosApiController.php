@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 use Illuminate\Http\Request;
-use App\Models\{Product, Sale, StockMovement, UnitOfMeasure, Client, Category, Payment, CashSessionTransaction, CashSession, Egress,Inventory};
+use App\Models\{Product, Sale, StockMovement, UnitOfMeasure, Client, Category, Payment, CashSessionTransaction, CashSession, Egress,Inventory,PaymentMethod};
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
@@ -90,9 +90,20 @@ class PosApiController extends Controller
 
     public function storeSale(Request $request)
     {
+        // LOG: Datos iniciales del request
+        Log::info('=== INICIO STORE SALE ===');
+        Log::info('Request completo:', $request->all());
+        Log::info('bank_account_id original:', ['bank_account_id' => $request->input('bank_account_id')]);
+        Log::info('bank_account_id existe en request?', ['exists' => $request->has('bank_account_id')]);
+        Log::info('bank_account_id es null?', ['is_null' => is_null($request->input('bank_account_id'))]);
+
         $request->merge([
             'is_cash' => filter_var($request->input('is_cash'), FILTER_VALIDATE_BOOLEAN),
         ]);
+        
+        // LOG: Después del merge
+        Log::info('Después del merge - bank_account_id:', ['bank_account_id' => $request->input('bank_account_id')]);
+
 
         $validator = Validator::make($request->all(), [
             'client_id' => 'required|exists:clients,id',
@@ -104,14 +115,22 @@ class PosApiController extends Controller
             'cart.*.tax_rate' => 'required|numeric',
             'cart.*.unit_of_measure_id' => 'required|exists:unit_of_measures,id',
             'notes' => 'nullable|string',
-            'payment_method_id' => 'required_if:is_cash,true|exists:payment_methods,id',
+            'payment_method_id' => 'required_if:is_cash,true|nullable|exists:payment_methods,id',
             'bank_account_id' => 'nullable|exists:bank_accounts,id',
         ]);
 
-        if ($validator->fails()) { return response()->json(['errors' => $validator->errors()], 422); }
+        if ($validator->fails()) { 
+            Log::error('Errores de validación:', $validator->errors()->toArray());
+            return response()->json(['errors' => $validator->errors()], 422); 
+        }
         
+        Log::info('Validación pasada - bank_account_id:', ['bank_account_id' => $request->input('bank_account_id')]);
+
         try {
             $sale = DB::transaction(function () use ($request) {
+                Log::info('=== DENTRO DE TRANSACCIÓN ===');
+                Log::info('bank_account_id en transacción:', ['bank_account_id' => $request->input('bank_account_id')]);
+
                 $businessId = auth()->user()->business_id;
                 $activeSession = CashSession::where('business_id', $businessId)->where('status', 'Abierta')->first();
                 
@@ -154,7 +173,7 @@ class PosApiController extends Controller
                     }
                 }
 
-                $sale = Sale::create([ 
+                $saleData = [ 
                     'business_id' => auth()->user()->business_id, 
                     'location_id' => $locationId, 
                     'client_id' => $request->input('client_id'), 
@@ -164,13 +183,38 @@ class PosApiController extends Controller
                     'is_cash' => $isCash,
                     'status' => $isCash ? 'Pagada' : 'Pendiente',
                     'total' => $total,
-                    'pending_amount' =>$total,
+                    'pending_amount' => $isCash ? 0 : $total,
                     'notes' => $request->input('notes'),
                     'cash_session_id' => $request->input('is_cash') ? $activeSession->id : null,
                     'payment_method_id' => $request->input('payment_method_id'),
                     'bank_account_id' => $request->input('bank_account_id'),  
 
+                ];
+
+                Log::info('=== DATOS PARA CREAR VENTA ===');
+                Log::info('Sale data completo:', $saleData);
+                Log::info('bank_account_id específico:', [
+                    'value' => $saleData['bank_account_id'],
+                    'type' => gettype($saleData['bank_account_id']),
+                    'is_null' => is_null($saleData['bank_account_id']),
+                    'is_empty' => empty($saleData['bank_account_id'])
                 ]);
+
+                $sale = Sale::create($saleData);
+
+                 Log::info('=== VENTA CREADA ===');
+                Log::info('Sale ID:', ['id' => $sale->id]);
+                Log::info('Sale bank_account_id después de crear:', [
+                    'bank_account_id' => $sale->bank_account_id,
+                    'fresh_bank_account_id' => $sale->fresh()->bank_account_id
+                ]);
+
+                // Verificar si el campo existe en la tabla
+                Log::info('Columnas de la tabla sales:', [
+                    'fillable' => $sale->getFillable(),
+                    'attributes' => array_keys($sale->getAttributes())
+                ]);
+
 
                 if ($isCash && $activeSession) {
                     CashSessionTransaction::create([
@@ -190,14 +234,27 @@ class PosApiController extends Controller
                     Inventory::where('product_id', $item['product_id'])
                              ->where('location_id', $locationId)
                              ->decrement('stock', $quantityToDeduct);
-                    StockMovement::create(['product_id' => $item['product_id'], 'type' => 'salida', 'quantity' => $quantityToDeduct, 'source_type' => get_class($sale), 'source_id' => $sale->id]);
+                    StockMovement::create([
+                        'product_id' => $item['product_id'], 
+                        'type' => 'salida', 
+                        'quantity' => $quantityToDeduct, 
+                        'source_type' => get_class($sale), 
+                        'source_id' => $sale->id
+                    ]);
                 }
                 
                 return $sale;
             });
 
+            Log::info('=== TRANSACCIÓN COMPLETADA ===');
+            Log::info('Sale final bank_account_id:', ['bank_account_id' => $sale->bank_account_id]);
+
+
             return response()->json(['success' => true, 'message' => '¡Venta registrada!', 'receipt_url' => route('sales.receipt.print', $sale)]);
         } catch (\Exception $e) {
+            Log::error('=== ERROR EN STORE SALE ===');
+            Log::error('Error al procesar venta: ' . $e->getMessage());
+            Log::error('Trace:', $e->getTraceAsString());
             Log::error('Error al procesar venta: ' . $e->getMessage());
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
@@ -209,7 +266,9 @@ class PosApiController extends Controller
         $validator = Validator::make($request->all(), [
             'client_id' => 'required|exists:clients,id',
             'amount' => 'required|numeric|min:0.01',
-            'sale_id' => 'nullable|exists:sales,id', // El sale_id es opcional
+            'sale_id' => 'nullable|exists:sales,id',
+            'payment_method_id' => 'required|exists:payment_methods,id', 
+            'bank_account_id' => 'nullable|exists:bank_accounts,id',   
         ]);
 
         if ($validator->fails()) {
@@ -254,7 +313,10 @@ class PosApiController extends Controller
                             'business_id' => $data['business_id'], 'client_id' => $data['client_id'],
                             'sale_id' => $sale->id, 'amount' => $amountToApply,
                             'payment_date' => $data['payment_date'],
+                            'payment_method_id' => $data['payment_method_id'],
+                            'bank_account_id' => $data['bank_account_id'],
                         ]);
+            //$paymentMethodName = PaymentMethod::find($data['payment_method_id'])->name ?? 'N/A';            
             CashSessionTransaction::create([
                 'cash_session_id' => $activeSession->id,
                 'amount' => $amountToApply,
@@ -299,6 +361,8 @@ class PosApiController extends Controller
                 throw new \Exception('Este cliente no tiene deudas pendientes.');
             }
 
+            $paymentMethodName = PaymentMethod::find($data['payment_method_id'])->name ?? 'N/A';
+
             foreach ($pendingSales as $sale) {
                 if ($remainingPayment <= 0) break;
                 $amountToApply = min($remainingPayment, $sale->pending_amount);
@@ -307,6 +371,8 @@ class PosApiController extends Controller
                             'business_id' => $data['business_id'], 'client_id' => $client->id,
                             'sale_id' => $sale->id, 'amount' => $amountToApply,
                             'payment_date' => $data['payment_date'],
+                            'payment_method_id' => $data['payment_method_id'],
+                            'bank_account_id' => $data['bank_account_id'],
                         ]);
 
                 // Registramos cada abono individual como un movimiento en la caja

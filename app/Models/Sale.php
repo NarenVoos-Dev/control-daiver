@@ -10,7 +10,22 @@ class Sale extends Model
 {
     use HasFactory;
     
-    protected $fillable = ['business_id', 'client_id', 'date', 'subtotal', 'tax', 'total','is_cash', 'status', 'pending_amount','location_id', 'notes'];
+    protected $fillable = [
+        'business_id', 
+        'client_id', 
+        'date',
+        'cash_session_id', 
+        'subtotal', 
+        'tax', 
+        'total',
+        'is_cash', 
+        'status', 
+        'pending_amount',
+        'location_id', 
+        'notes',
+        'payment_method_id', 
+        'bank_account_id', 
+    ];
     
    
     protected $casts = [         
@@ -57,5 +72,13 @@ class Sale extends Model
     {
         return $this->hasOne(ElectronicDocument::class);
     }
+    // ... tu código y relaciones existentes ...
 
+    /**
+     * Una venta (si es de contado) tiene un método de pago.
+     */
+    public function paymentMethod(): BelongsTo
+    {
+        return $this->belongsTo(PaymentMethod::class);
+    }
 }

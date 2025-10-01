@@ -86,22 +86,6 @@
                 </thead>
                 <tbody id="sales-tbody">
                     @include('partials.sales-table-rows', ['pendingSales' => $pendingSales])
-                    <!--@forelse($pendingSales as $sale)
-                    <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                        <td class="py-3 px-4 font-medium text-gray-900">#{{ $sale->id }}</td>
-                        <td class="py-3 px-4 text-gray-600">{{ $sale->date->format('d/m/Y') }}</td>
-                        <td class="py-3 px-4 text-right font-medium">${{ number_format($sale->total, 0) }}</td>
-                        <td class="py-3 px-4 text-right font-semibold text-red-600">${{ number_format($sale->pending_amount, 0) }}</td>
-                        <td class="py-3 px-4 text-center font-medium">{{ \Carbon\Carbon::parse($sale->date)->diffInDays(now()) }}</td>
-                        <td class="py-3 px-4 text-center">
-                            <button onclick="openPaymentModal({{ $client->id }}, {{ $sale->id }}, {{ $sale->pending_amount }})" class="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-xs font-medium transition-colors">
-                                Abonar
-                            </button>
-                        </td>
-                    </tr>
-                    @empty
-                    <tr><td colspan="6" class="py-10 text-center text-gray-500">No se encontraron facturas pendientes.</td></tr>
-                    @endforelse-->
                 </tbody>
             </table>
         </div>
@@ -131,7 +115,25 @@
                 <label for="montoAbono" class="block text-sm font-medium text-gray-700 mb-2">Monto del Abono:</label>
                 <input type="number" id="montoAbono" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" placeholder="Ingrese el monto">
             </div>
-            <div class="flex space-x-3">
+            <div>
+                <label for="abono-payment-method" class="block text-sm font-medium text-gray-700 mb-2">Método de Pago</label>
+                <select id="abono-payment-method" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                    {{-- Aquí cargas los $paymentMethods desde el controlador --}}
+                    @foreach($paymentMethods as $method)
+                        <option value="{{ $method->id }}" data-type="{{ $method->type }}">{{ $method->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div id="abono-bank-account-area" class="mt-4 hidden">
+                <label for="abono-bank-account" class="block text-sm font-medium text-gray-700 mb-2">Cuenta de Destino</label>
+                <select id="abono-bank-account" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                    {{-- Aquí cargas los $bankAccounts desde el controlador --}}
+                    @foreach($bankAccounts as $account)
+                        <option value="{{ $account->id }}">{{ $account->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="flex space-x-3 mt-6">
                 <button onclick="cerrarModalAbono()" class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 py-3 px-4 rounded-lg font-medium transition-colors">Cancelar</button>
                 <button onclick="procesarAbono()" class="flex-1 bg-green-600 hover:bg-green-700 text-white py-3 px-4 rounded-lg font-medium transition-colors">Aplicar Abono</button>
             </div>
@@ -152,110 +154,204 @@
 @push('scripts')
 <script>
     let currentClientId, currentSaleId, currentSaleDebt;
-    const apiToken = $('meta[name="api-token"]').attr('content');
-    const csrfToken = $('meta[name="csrf-token"]').attr('content');
+const apiToken = $('meta[name="api-token"]').attr('content');
+const csrfToken = $('meta[name="csrf-token"]').attr('content');
 
-    $(document).ready(function() {
-        const debounce = (func, delay) => {
-            let timeout;
-            return function(...args) {
-                clearTimeout(timeout);
-                timeout = setTimeout(() => func.apply(this, args), delay);
-            };
-        };
-
-        const performSearch = () => {
-            const searchTerm = $('#search-input').val();
-            const url = `/api/pos/clients/{{ $client->id }}/search-sales?search=${encodeURIComponent(searchTerm)}`;
-
-            $.ajax({
-                url: url,
-                method: 'GET',
-                headers: { 'Authorization': `Bearer {{ $apiToken }}`, 'Accept': 'application/json' },
-                success: function(response) {
-                    $('#sales-tbody').html(response.table_html);
-                    $('#sales-pagination').html(response.pagination_html);
-                },
-                error: function(xhr) {
-                    console.error('Error en la búsqueda:', xhr);
-                }
-            });
-        };
-
-        $('#search-input').on('keyup', debounce(performSearch, 300));
+$(document).ready(function() {
+    console.log('=== PAYMENT METHODS DEBUG ===');
+    $('#abono-payment-method option').each(function() {
+        console.log('Value:', $(this).val(), 'Type:', $(this).data('type'), 'Text:', $(this).text());
     });
 
-    function openPaymentModal(clientId, saleId = null, saleDebt = null) {
-        currentClientId = clientId;
-        currentSaleId = saleId;
-        currentSaleDebt = saleDebt;
-
-        if (saleId) {
-            $('#facturaAbono').text(`Factura #${saleId}`);
-            $('#saldoActual').text(`$${saleDebt.toLocaleString()}`);
-        } else {
-            $('#facturaAbono').text('Abono a Deuda Total');
-            $('#saldoActual').text("${{ number_format($stats['total_debt'], 0, ',', '.') }}");
-        }
-        $('#montoAbono').val('');
-        $('#abonoModal').removeClass('hidden').addClass('flex');
-    }
-
-    function cerrarModalAbono() {
-        $('#abonoModal').addClass('hidden').removeClass('flex');
-    }
-
-    function procesarAbono() {
-        const amount = parseFloat($('#montoAbono').val());
-        if (!amount || amount <= 0) {
-            showAlert('Monto Inválido', 'Por favor ingrese un monto válido.', 'error');
-            return;
-        }
-
-        if (currentSaleId && amount > currentSaleDebt) {
-            const surplus = amount - currentSaleDebt;
-            if (confirm(`El monto ingresado es mayor a la deuda de esta factura. ¿Desea aplicar el sobrante de $${surplus.toLocaleString()} a la deuda total del cliente?`)) {
-                // Si confirma, se envía el pago completo como un abono masivo
-                sendPaymentRequest({ client_id: currentClientId, amount: amount });
-            } else {
-                // Si no, se envía solo el monto exacto de la deuda
-                sendPaymentRequest({ client_id: currentClientId, sale_id: currentSaleId, amount: currentSaleDebt });
-                showAlert('Vuelto a Entregar', `Se aplicó el pago exacto. Debe devolver un vuelto de $${surplus.toLocaleString()} al cliente.`, 'info');
-            }
-        } else {
-            // Si es un abono masivo o el monto es menor/igual a la deuda específica
-            sendPaymentRequest({
-                client_id: currentClientId,
-                sale_id: currentSaleId, // Será null si es masivo
-                amount: amount
-            });
-        }
-    }
-
-    function sendPaymentRequest(data) {
-        $('#loading-overlay').removeClass('hidden').addClass('flex');
+    // ✅ CORREGIDO: Se cambió 'abono-bank-account' por 'bank_account'
+    $('#abono-payment-method').on('change', function() {
+        const selectedOption = $(this).find('option:selected');
+        const selectedType = selectedOption.data('type');
+        const selectedValue = selectedOption.val();
+        const selectedText = selectedOption.text();
         
+        console.log('=== PAYMENT METHOD CHANGED ===');
+        console.log('Selected value:', selectedValue);
+        console.log('Selected type:', selectedType);
+        console.log('Selected text:', selectedText);
+        console.log('Checking for bank_account:', selectedType === 'bank_account');
+        console.log('Checking for card:', selectedType === 'card');
+        
+        // ✅ CORREGIDO: tipo correcto 'bank_account'
+        if (selectedType === 'bank_account' || selectedType === 'card') {
+            console.log('Showing bank account area');
+            $('#abono-bank-account-area').removeClass('hidden');
+        } else {
+            console.log('Hiding bank account area');
+            $('#abono-bank-account-area').addClass('hidden');
+        }
+    });
+
+    const debounce = (func, delay) => {
+        let timeout;
+        return function(...args) {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => func.apply(this, args), delay);
+        };
+    };
+
+    const performSearch = () => {
+        const searchTerm = $('#search-input').val();
+        const clientId = '{{ $client->id }}';
+        const url = `/api/pos/clients/${clientId}/search-sales?search=${encodeURIComponent(searchTerm)}`;
+
         $.ajax({
-            url: '/api/pos/store-payment',
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${apiToken}`, 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' },
-            data: data,
+            url: url,
+            method: 'GET',
+            headers: { 
+                'Authorization': `Bearer ${apiToken}`,
+                'Accept': 'application/json' 
+            },
             success: function(response) {
-                if (response.success) {
-                    showAlert('Éxito', response.message, 'success');
-                    cerrarModalAbono();
-                    setTimeout(() => {
-                        window.location.href = "{{ route('pos.accounts.receivable') }}";
-                    }, 2000);
-                }
+                $('#sales-tbody').html(response.table_html);
+                $('#sales-pagination').html(response.pagination_html);
             },
             error: function(xhr) {
-                const error = xhr.responseJSON;
-                showAlert('Error', error?.message || 'Ocurrió un problema.', 'error');
+                console.error('Error en la búsqueda:', xhr);
+                showAlert('Error', 'No se pudo realizar la búsqueda', 'error');
             }
         });
+    };
+
+    $('#search-input').on('keyup', debounce(performSearch, 300));
+});
+
+function openPaymentModal(clientId, saleId = null, saleDebt = null) {
+    currentClientId = clientId;
+    currentSaleId = saleId;
+    currentSaleDebt = saleDebt;
+
+    if (saleId) {
+        $('#facturaAbono').text(`Factura #${saleId}`);
+        $('#saldoActual').text(`$${saleDebt.toLocaleString()}`);
+    } else {
+        $('#facturaAbono').text('Abono a Deuda Total');
+        $('#saldoActual').text("${{ number_format($stats['total_debt'], 0, ',', '.') }}");
+    }
+    $('#montoAbono').val('');
+    $('#abonoModal').removeClass('hidden').addClass('flex');
+}
+
+function cerrarModalAbono() {
+    $('#abonoModal').addClass('hidden').removeClass('flex');
+}
+
+function procesarAbono() {
+    const amount = parseFloat($('#montoAbono').val());
+    if (!amount || amount <= 0) {
+        showAlert('Monto Inválido', 'Por favor ingrese un monto válido.', 'error');
+        return;
     }
 
-    function showAlert(title, message, type = 'success') { /* ... (tu función de alerta aquí) ... */ }
+    if (currentSaleId && amount > currentSaleDebt) {
+        const surplus = amount - currentSaleDebt;
+        if (confirm(`El monto ingresado es mayor a la deuda de esta factura. ¿Desea aplicar el sobrante de $${surplus.toLocaleString()} a la deuda total del cliente?`)) {
+            sendPaymentRequest({ client_id: currentClientId, amount: amount });
+        } else {
+            sendPaymentRequest({ client_id: currentClientId, sale_id: currentSaleId, amount: currentSaleDebt });
+            showAlert('Vuelto a Entregar', `Se aplicó el pago exacto. Debe devolver un vuelto de $${surplus.toLocaleString()} al cliente.`, 'info');
+        }
+    } else {
+        sendPaymentRequest({
+            client_id: currentClientId,
+            sale_id: currentSaleId,
+            amount: amount
+        });
+    }
+}
+
+function sendPaymentRequest(data) {
+    $('#loading-overlay').removeClass('hidden').addClass('flex');
+
+    const paymentMethodId = $('#abono-payment-method').val();
+    const bankAccountId = $('#abono-bank-account-area').is(':visible') 
+        ? $('#abono-bank-account').val() 
+        : null;
+
+    console.log('Método de pago seleccionado:', paymentMethodId);
+    console.log('Cuenta bancaria seleccionada:', bankAccountId);
+
+    data.payment_method_id = paymentMethodId;
+    data.bank_account_id = bankAccountId;
+
+    console.log('=== DATOS A ENVIAR ===');
+    console.log('Data completo:', data);
+    console.log('payment_method_id:', paymentMethodId);
+    console.log('bank_account_id:', bankAccountId);
+    
+    $.ajax({
+        url: '/api/pos/store-payment',
+        method: 'POST',
+        headers: { 
+            'Authorization': `Bearer ${apiToken}`,
+            'X-CSRF-TOKEN': csrfToken,
+            'Accept': 'application/json',
+            'Content-Type': 'application/json' 
+        },
+        data: JSON.stringify(data),
+        success: function(response) {
+            // ✅ CORREGIDO: Se oculta el overlay
+            $('#loading-overlay').addClass('hidden').removeClass('flex');
+            
+            if (response.success) {
+                showAlert('Éxito', response.message, 'success');
+                cerrarModalAbono();
+                setTimeout(() => {
+                    window.location.href = "{{ route('pos.accounts.receivable') }}";
+                }, 2000);
+            }
+        },
+        error: function(xhr) {
+            // ✅ CORREGIDO: Se oculta el overlay
+            $('#loading-overlay').addClass('hidden').removeClass('flex');
+            console.error('=== ERROR EN AJAX ===');
+            console.error('Status:', xhr.status);
+            console.error('Response:', xhr.responseJSON);
+            console.error('Response Text:', xhr.responseText);
+            
+            const error = xhr.responseJSON;
+            showAlert('Error', error?.message || 'Ocurrió un problema al procesar el pago.', 'error');
+        }
+    });
+}
+
+// ✅ IMPLEMENTADA: Función showAlert completa
+function showAlert(title, message, type = 'success') {
+    const bgColor = type === 'success' ? 'bg-green-500' : type === 'error' ? 'bg-red-500' : 'bg-blue-500';
+    const icon = type === 'success' 
+        ? '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>'
+        : type === 'error'
+        ? '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>'
+        : '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>';
+
+    const alertHtml = `
+        <div class="${bgColor} text-white px-6 py-4 rounded-lg shadow-lg flex items-start space-x-3 animate-slide-in">
+            <svg class="w-6 h-6 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                ${icon}
+            </svg>
+            <div class="flex-1">
+                <p class="font-bold">${title}</p>
+                <p class="text-sm">${message}</p>
+            </div>
+            <button onclick="this.parentElement.remove()" class="text-white hover:text-gray-200">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
+    `;
+
+    const $alert = $(alertHtml);
+    $('#alert-container').append($alert);
+
+    setTimeout(() => {
+        $alert.fadeOut(300, function() { $(this).remove(); });
+    }, 5000);
+}
 </script>
 @endpush
