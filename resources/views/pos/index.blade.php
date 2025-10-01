@@ -296,7 +296,37 @@
         }
         
         // --- MANEJADORES DE EVENTOS ---
-        $('#search-input').on('keyup', debounce(handleSearch, 300));
+        //$('#search-input').on('keyup', debounce(handleSearch, 300));
+        // En la sección de MANEJADORES DE EVENTOS
+
+        $('#search-input').on('keyup', debounce(function() {
+            const searchTerm = $(this).val().trim();
+            
+            // Solo buscar si hay al menos 1 caracter (para SKU cortos o nombres)
+            if (searchTerm.length >= 1) {
+                loadProducts(searchTerm, currentView === 'products' ? selectedCategoryId : null)
+                    .done(function(products) {
+                        if (products.length === 1 && searchTerm.length >= 3) {
+                            // Auto-agregar solo si:
+                            // 1. Hay exactamente 1 resultado
+                            // 2. Se han escrito al menos 3 caracteres (evita agregar accidentalmente)
+                            addToCart(products[0]);
+                            $('#search-input').val('');
+                            showAlert('Producto Agregado', `${products[0].name} añadido al carrito`, 'success');
+                        } else if (products.length === 0) {
+                            // Solo mostrar si escribió algo significativo
+                            if (searchTerm.length >= 3) {
+                                showAlert('Sin Resultados', 'No se encontró ningún producto', 'warning');
+                            }
+                        }
+                        // Si hay múltiples resultados, se muestran en el catálogo
+                    });
+            } else if (searchTerm.length === 0) {
+                // Si borra todo, volver a mostrar categorías
+                showCategories();
+            }
+        }, 300)); // 300ms de delay después de dejar de escribir
+        
         $('#back-to-categories').on('click', showCategories);
         $(document).on('click', '.category-btn', function() { showProducts($(this).data('id')); });
         $(document).on('click', '.add-to-cart-btn', function() { addToCart($(this).data('product')); });
@@ -390,11 +420,27 @@
             }
         }
 
-        function loadProducts(searchTerm = '', categoryId = null) {
+        /*function loadProducts(searchTerm = '', categoryId = null) {
             $('#catalog-view').html('<p class="text-center text-gray-500">Cargando...</p>');
             let data = { search: searchTerm };
             if (categoryId) data.category_id = categoryId;
             ajaxRequest('/api/pos/search-products', 'GET', data).done(renderProducts);
+        }*/
+        function loadProducts(searchTerm = '', categoryId = null) {
+            if (searchTerm && typeof searchTerm !== 'string') { 
+                searchTerm = $('#search-input').val(); 
+            }
+            
+            currentView = 'products';
+            $('#catalog-view').html('<p class="text-center text-gray-500">Cargando...</p>');
+            
+            let data = { search: searchTerm };
+            if (categoryId) data.category_id = categoryId;
+            $('#back-to-categories').removeClass('hidden');
+            
+            // Usa tu función ajaxRequest que ya tienes definida
+            return ajaxRequest('/api/pos/search-products', 'GET', data)
+                .done(renderProducts);
         }
 
         function renderCategories(filter = '') {
@@ -409,15 +455,21 @@
         }
 
         function renderProducts(products) {
+            //console.log('Productos recibidos para renderizar:', products);
             let html = '<div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">';
             products.forEach(p => {
                 const stock = p.stock_in_location ?? 0;
                 const stockMessage = `Stock: ${stock} - ${p.unit_of_measure.name}`;
                 const stockColor = stock <= 0 ? 'bg-red-300' : 'bg-green-200';
-                html += `<div class="p-2 border border-gray-400 rounded-lg cursor-pointer add-to-cart-btn ${stockColor}" data-product='${JSON.stringify(p)}' data-tippy-content="Agregar al carrito">
-                            <p class="text-sm font-semibold">${p.name}</p>
-                            <p class="text-xs">$ ${parseFloat(p.price) % 1 === 0 ? parseInt(p.price) : parseFloat(p.price).toFixed(2)}</p>
-                            <p class="text-xs">${stockMessage}</p>
+                html += `<div class="flex flex-col justify-between p-2 border rounded-lg cursor-pointer add-to-cart-btn ${stockColor}" data-product='${JSON.stringify(p)}'>
+                            <div>
+                                <p class="text-sm font-semibold">${p.name}</p>
+                                <p class="text-xs text-gray-500">SKU: ${p.sku ?? 'N/A'}</p>
+                            </div>
+                            <div>
+                                <p class="text-xs">$${parseFloat(p.price).toFixed(2)}</p>
+                                <p class="text-xs font-bold">${stockMessage}</p>
+                            </div>
                         </div>`;
             });
             html += `</div>`;

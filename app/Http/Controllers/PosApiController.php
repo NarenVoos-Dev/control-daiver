@@ -41,7 +41,11 @@ class PosApiController extends Controller
             }
         }
         if ($request->filled('search')) {
-            $query->where('name', 'like', '%' . $request->input('search') . '%');
+            $searchTerm = $request->input('search');
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('products.name', 'like', "%{$searchTerm}%")
+                ->orWhere('products.sku', '=', $searchTerm); 
+            });
         }
         
         return response()->json($query->with('unitOfMeasure')->limit(50)->get());
